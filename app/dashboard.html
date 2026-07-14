@@ -104,7 +104,7 @@
   <script src="assets/app-common.js"></script>
   <script>
     // ---------- utils ----------
-    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = true; // tema escuro fixo (fundo preto)
     const PALETA = ["#ff6f1f", "#4f95ff", "#2ec27e", "#f2a63c", "#a878ff", "#22b8cf"];
     function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
     function fmt(n) { return Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 }); }
