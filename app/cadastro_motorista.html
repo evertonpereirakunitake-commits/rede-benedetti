@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Cadastro de motorista - Rede Benedetti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="top-bar">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="">
+      <h1>Cadastro de motorista</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <p class="sub" style="color:var(--text-dim)">Preencha seus dados pra ter acesso ao app e ver suas cargas.</p>
+
+    <form id="form-motorista">
+      <label for="mot-nome">Seu nome completo</label>
+      <input id="mot-nome" type="text" required>
+
+      <label for="mot-telefone">Seu telefone (com DDI e DDD)</label>
+      <input id="mot-telefone" type="tel" inputmode="numeric" placeholder="5514999990001" required>
+
+      <label for="mot-placa">Placa do caminhão (opcional)</label>
+      <input id="mot-placa" type="text" placeholder="ABC1D23">
+
+      <label for="mot-pin">Crie um PIN de 4 dígitos pra entrar no app</label>
+      <input id="mot-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required>
+
+      <button type="submit" id="btn-salvar">Criar meu acesso</button>
+      <div class="msg"></div>
+    </form>
+
+    <div id="sucesso" style="display:none; text-align:center; margin-top:20px">
+      <p style="color:var(--text-dim)">Cadastro feito! Guarde seu telefone e PIN — é com eles que você entra no app.</p>
+      <a class="btn" href="login.html?tipo=motorista">Entrar agora</a>
+    </div>
+  </div>
+
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script>
+    const form = document.getElementById("form-motorista");
+    const msgEl = form.querySelector(".msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-salvar");
+      msgEl.innerHTML = "";
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+
+      try {
+        await callFunction("cadastro", {
+          tipo: "motorista",
+          nome: document.getElementById("mot-nome").value.trim(),
+          telefone: document.getElementById("mot-telefone").value.trim().replace(/\D/g, ""),
+          pin: document.getElementById("mot-pin").value.trim(),
+          placa: document.getElementById("mot-placa").value.trim() || null
+        });
+        form.style.display = "none";
+        document.getElementById("sucesso").style.display = "block";
+      } catch (err) {
+        msgEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Criar meu acesso";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Painel do gerente - Rede Benedetti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="top-bar">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="">
+      <div>
+        <h1>Cargas a caminho</h1>
+        <div class="sub" id="nome-gerente"></div>
+      </div>
+    </div>
+    <button class="secondary tag-btn" onclick="logout()">Sair</button>
+  </div>
+
+  <div class="container">
+    <button id="btn-notif" class="secondary" style="display:none">Ativar notificações</button>
+    <div id="mapa"></div>
+    <div id="lista">
+      <div class="empty-state">Carregando...</div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script>
+    const sessao = requireSession("gerente");
+
+    if (sessao) {
+      document.getElementById("nome-gerente").textContent = sessao.nome;
+
+      if ("Notification" in window && Notification.permission === "default") {
+        const btnNotif = document.getElementById("btn-notif");
+        btnNotif.style.display = "block";
+        btnNotif.onclick = () => {
+          Notification.requestPermission().then(() => {
+            btnNotif.style.display = "none";
+          });
+        };
+      }
+
+      const mapa = L.map("mapa").setView([-22.9, -47.3], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(mapa);
+
+      const iconPosto = L.divIcon({
+        className: "",
+        html: '<div style="background:#f97316;width:16px;height:16px;border-radius:50%;border:3px solid #fff"></div>',
+        iconSize: [16, 16]
+      });
+      const iconCaminhao = L.divIcon({
+        className: "",
+        html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid #fff"></div>',
+        iconSize: [16, 16]
+      });
+
+      const marcadoresCarga = {};
+      let statusAnterior = {};
+      let mapaCentralizado = false;
+
+      async function carregarPosto() {
+        try {
+          const sb = getSupabaseClient();
+          const { data: posto } = await sb
+            .from("postos_publico")
+            .select("nome, latitude, longitude")
+            .eq("id", sessao.posto_id)
+            .single();
+
+          if (posto && posto.latitude && posto.longitude) {
+            const latlng = [Number(posto.latitude), Number(posto.longitude)];
+            mapa.setView(latlng, 12);
+            mapaCentralizado = true;
+            L.marker(latlng, { icon: iconPosto }).addTo(mapa).bindPopup(posto.nome || "Meu posto");
+          }
+        } catch (err) {
+          // Sem view pública de postos ainda cadastrada - mapa segue com view padrão
+        }
+      }
+
+      async function carregarCargas() {
+        const listaEl = document.getElementById("lista");
+        try {
+          const resp = await callFunction("minhas-cargas", {
+            acao: "listar_gerente",
+            posto_id: sessao.posto_id
+          });
+          const cargas = resp.cargas || [];
+          renderizarLista(cargas, listaEl);
+          atualizarMapa(cargas);
+          checarNotificacoes(cargas);
+        } catch (err) {
+          listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+        }
+      }
+
+      function renderizarLista(cargas, listaEl) {
+        if (cargas.length === 0) {
+          listaEl.innerHTML = '<div class="empty-state">Nenhuma carga a caminho no momento.</div>';
+          return;
+        }
+        listaEl.innerHTML = cargas.map((c) => `
+          <div class="card">
+            <span class="badge ${statusClass(c.status)}">${statusLabel(c.status)}</span>
+            <h3>${c.motorista_nome}</h3>
+            <div class="row"><span>Combustível</span><span>${c.combustivel}</span></div>
+            <div class="row"><span>Volume</span><span>${c.volume_total} L</span></div>
+            <div class="row"><span>Placa</span><span>${c.motorista_placa || "-"}</span></div>
+            ${c.status === "em_transito" && c.distancia_restante_km != null
+              ? `<div class="row"><span>Distância</span><span>${Number(c.distancia_restante_km).toFixed(1)} km</span></div>
+                 <div class="row"><span>ETA</span><span>${c.tempo_estimado_min ?? "-"} min</span></div>`
+              : ""}
+          </div>
+        `).join("");
+      }
+
+      function atualizarMapa(cargas) {
+        const idsAtivos = new Set();
+
+        cargas.forEach((c) => {
+          if (c.status !== "em_transito" || !c.latitude_atual || !c.longitude_atual) return;
+          idsAtivos.add(c.id);
+          const latlng = [Number(c.latitude_atual), Number(c.longitude_atual)];
+
+          if (marcadoresCarga[c.id]) {
+            marcadoresCarga[c.id].setLatLng(latlng);
+          } else {
+            marcadoresCarga[c.id] = L.marker(latlng, { icon: iconCaminhao })
+              .addTo(mapa)
+              .bindPopup(`${c.motorista_nome} - ${c.combustivel}`);
+          }
+
+          if (!mapaCentralizado) mapa.setView(latlng, 12);
+        });
+
+        Object.keys(marcadoresCarga).forEach((id) => {
+          if (!idsAtivos.has(id)) {
+            mapa.removeLayer(marcadoresCarga[id]);
+            delete marcadoresCarga[id];
+          }
+        });
+      }
+
+      function checarNotificacoes(cargas) {
+        cargas.forEach((c) => {
+          const anterior = statusAnterior[c.id];
+          if (anterior === undefined) {
+            notificar("Nova carga atribuída", `${c.motorista_nome} - ${c.combustivel}`);
+          } else if (anterior === "aguardando_carregamento" && c.status === "em_transito") {
+            notificar("Carga a caminho", `${c.motorista_nome} saiu com ${c.combustivel}`);
+          }
+          statusAnterior[c.id] = c.status;
+        });
+      }
+
+      carregarPosto().then(carregarCargas);
+      setInterval(carregarCargas, 10000);
+    }
+  </script>
+</body>
+</html>

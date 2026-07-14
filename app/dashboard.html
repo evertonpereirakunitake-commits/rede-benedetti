@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Dashboard - Rede Benedetti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/dashboard.css">
+</head>
+<body>
+  <div class="dash-top">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="" style="width:28px;height:28px">
+      <h1>Dashboard da rede</h1>
+    </div>
+    <div class="actions">
+      <span class="updated-at" id="atualizado-em"></span>
+      <button class="secondary" id="btn-atualizar">Atualizar agora</button>
+      <a class="btn" href="atribuir_carga.html">+ Nova carga</a>
+    </div>
+  </div>
+
+  <div class="dash-shell">
+    <div class="kpi-grid" id="kpis">
+      <div class="kpi-card"><div class="kpi-label">Cargas ativas</div><div class="kpi-value">-</div></div>
+    </div>
+
+    <div id="mapa-dash"></div>
+
+    <div class="dash-grid">
+      <div class="panel">
+        <h2>Entregas nos últimos 7 dias</h2>
+        <div id="grafico-entregas"></div>
+      </div>
+      <div class="panel">
+        <h2>Volume por combustível (L)</h2>
+        <div id="grafico-combustivel"></div>
+      </div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="panel" style="grid-column: 1 / -1">
+        <h2>Cargas ativas por posto</h2>
+        <div id="grafico-postos"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Cargas ativas em toda a rede</h2>
+      <div class="tabela-wrap">
+        <table class="dash-table">
+          <thead>
+            <tr>
+              <th>Posto</th>
+              <th>Motorista</th>
+              <th>Placa</th>
+              <th>Combustível</th>
+              <th>Volume (L)</th>
+              <th>Status</th>
+              <th>Distância</th>
+              <th>ETA</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-cargas">
+            <tr><td colspan="8" class="empty-state">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script src="assets/charts.js"></script>
+  <script>
+    const mapa = L.map("mapa-dash").setView([-22.9, -47.3], 7);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap"
+    }).addTo(mapa);
+
+    const iconCaminhao = L.divIcon({
+      className: "",
+      html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:3px solid #fff"></div>',
+      iconSize: [14, 14]
+    });
+
+    let marcadores = {};
+    let bordasAjustadas = false;
+
+    function formatarNumero(n) {
+      return Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+    }
+
+    function renderizarKpis(resumo) {
+      const kpisEl = document.getElementById("kpis");
+      kpisEl.innerHTML = `
+        <div class="kpi-card accent-primary">
+          <div class="kpi-label">Cargas ativas</div>
+          <div class="kpi-value">${resumo.ativas}</div>
+        </div>
+        <div class="kpi-card accent-amber">
+          <div class="kpi-label">Aguardando carregamento</div>
+          <div class="kpi-value">${resumo.aguardando}</div>
+        </div>
+        <div class="kpi-card accent-blue">
+          <div class="kpi-label">Em trânsito</div>
+          <div class="kpi-value">${resumo.em_transito}</div>
+        </div>
+        <div class="kpi-card accent-green">
+          <div class="kpi-label">Entregues hoje</div>
+          <div class="kpi-value">${resumo.entregues_hoje}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Volume entregue hoje</div>
+          <div class="kpi-value">${formatarNumero(resumo.volume_entregue_hoje)} L</div>
+        </div>
+      `;
+    }
+
+    function renderizarTabela(cargas) {
+      const tbody = document.getElementById("tabela-cargas");
+      if (cargas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhuma carga ativa no momento.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = cargas.map((c) => `
+        <tr>
+          <td>${c.posto_nome}</td>
+          <td>${c.motorista_nome}</td>
+          <td>${c.motorista_placa || "-"}</td>
+          <td>${c.combustivel}</td>
+          <td>${formatarNumero(c.volume_total)}</td>
+          <td><span class="badge ${statusClass(c.status)}">${statusLabel(c.status)}</span></td>
+          <td>${c.distancia_restante_km != null ? Number(c.distancia_restante_km).toFixed(1) + " km" : "-"}</td>
+          <td>${c.tempo_estimado_min != null ? c.tempo_estimado_min + " min" : "-"}</td>
+        </tr>
+      `).join("");
+    }
+
+    function atualizarMapa(cargas) {
+      const idsAtivos = new Set();
+      const pontos = [];
+
+      cargas.forEach((c) => {
+        if (c.status !== "em_transito" || !c.latitude_atual || !c.longitude_atual) return;
+        idsAtivos.add(c.id);
+        const latlng = [Number(c.latitude_atual), Number(c.longitude_atual)];
+        pontos.push(latlng);
+
+        if (marcadores[c.id]) {
+          marcadores[c.id].setLatLng(latlng);
+        } else {
+          marcadores[c.id] = L.marker(latlng, { icon: iconCaminhao })
+            .addTo(mapa)
+            .bindPopup(`${c.motorista_nome} → ${c.posto_nome}<br>${c.combustivel} · ${c.volume_total} L`);
+        }
+      });
+
+      Object.keys(marcadores).forEach((id) => {
+        if (!idsAtivos.has(id)) {
+          mapa.removeLayer(marcadores[id]);
+          delete marcadores[id];
+        }
+      });
+
+      if (!bordasAjustadas && pontos.length > 0) {
+        mapa.fitBounds(pontos, { padding: [30, 30], maxZoom: 10 });
+        bordasAjustadas = true;
+      }
+    }
+
+    async function carregarDashboard() {
+      try {
+        const resp = await callFunction("dashboard", {});
+        renderizarKpis(resp.resumo);
+        renderizarTabela(resp.ativas);
+        atualizarMapa(resp.ativas);
+
+        desenharBarras(
+          document.getElementById("grafico-entregas"),
+          resp.entregas_7dias.map((d) => ({ label: d.data.slice(5), value: d.qtd })),
+          { cor: cssVar("--blue") }
+        );
+
+        desenharDonut(
+          document.getElementById("grafico-combustivel"),
+          resp.por_combustivel.map((d) => ({ label: d.combustivel, value: Math.round(d.volume) })),
+          { formatarValor: (v) => formatarNumero(v) + " L" }
+        );
+
+        desenharBarrasHorizontais(
+          document.getElementById("grafico-postos"),
+          resp.por_posto.map((d) => ({ label: d.posto_nome, value: d.qtd }))
+        );
+
+        document.getElementById("atualizado-em").textContent =
+          "Atualizado às " + new Date(resp.gerado_em).toLocaleTimeString("pt-BR");
+      } catch (err) {
+        document.getElementById("tabela-cargas").innerHTML =
+          `<tr><td colspan="8" class="error-msg">${err.message}</td></tr>`;
+      }
+    }
+
+    document.getElementById("btn-atualizar").addEventListener("click", carregarDashboard);
+    carregarDashboard();
+    setInterval(carregarDashboard, 15000);
+  </script>
+</body>
+</html>

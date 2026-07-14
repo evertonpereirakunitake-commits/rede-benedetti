@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Login - Rede Benedetti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="top-bar">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="">
+      <h1>Rede Benedetti</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="picker" class="role-picker" style="display:none">
+      <p style="color:var(--text-dim); margin-bottom:0">Entrar como:</p>
+      <a class="btn" href="login.html?tipo=motorista"><strong>Motorista</strong></a>
+      <a class="btn" href="login.html?tipo=gerente"><strong>Gerente de posto</strong></a>
+    </div>
+
+    <form id="form-login" style="display:none">
+      <h2 id="titulo-login" style="margin-bottom:0"></h2>
+      <label id="lbl-identificador" for="identificador">Telefone (com DDI e DDD)</label>
+      <input id="identificador" type="tel" inputmode="numeric" placeholder="5514999990001" required>
+
+      <label for="pin">PIN (4 dígitos)</label>
+      <input id="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required>
+
+      <button type="submit" id="btn-entrar">Entrar</button>
+      <div id="erro" class="error-msg" style="display:none"></div>
+    </form>
+  </div>
+
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const tipo = params.get("tipo");
+
+    if (tipo !== "motorista" && tipo !== "gerente") {
+      document.getElementById("picker").style.display = "flex";
+    } else {
+      const form = document.getElementById("form-login");
+      const campoIdentificador = document.getElementById("identificador");
+      form.style.display = "block";
+
+      if (tipo === "motorista") {
+        document.getElementById("titulo-login").textContent = "Login do motorista";
+        document.getElementById("lbl-identificador").textContent = "Telefone (com DDI e DDD)";
+        campoIdentificador.placeholder = "5514999990001";
+        campoIdentificador.type = "tel";
+      } else {
+        document.getElementById("titulo-login").textContent = "Login do gerente";
+        document.getElementById("lbl-identificador").textContent = "CNPJ do posto";
+        campoIdentificador.placeholder = "12345678000199";
+        campoIdentificador.type = "text";
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const erroEl = document.getElementById("erro");
+        const btn = document.getElementById("btn-entrar");
+        erroEl.style.display = "none";
+        btn.disabled = true;
+        btn.textContent = "Entrando...";
+
+        try {
+          const identificador = campoIdentificador.value.trim().replace(/\D/g, "");
+          const pin = document.getElementById("pin").value.trim();
+          const resp = await callFunction("login", { tipo, identificador, pin });
+
+          setSession({
+            tipo,
+            id: resp.usuario.id,
+            nome: resp.usuario.nome,
+            posto_id: resp.usuario.posto_id || null
+          });
+
+          window.location.href = tipo === "motorista" ? "motorista.html" : "painel_gerente.html";
+        } catch (err) {
+          erroEl.textContent = err.message || (tipo === "motorista" ? "Telefone ou PIN incorretos" : "CNPJ ou PIN incorretos");
+          erroEl.style.display = "block";
+          btn.disabled = false;
+          btn.textContent = "Entrar";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

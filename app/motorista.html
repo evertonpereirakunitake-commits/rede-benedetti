@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Minhas cargas - Rede Benedetti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="top-bar">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="">
+      <div>
+        <h1>Minhas cargas</h1>
+        <div class="sub" id="nome-motorista"></div>
+      </div>
+    </div>
+    <button class="secondary tag-btn" onclick="logout()">Sair</button>
+  </div>
+
+  <div class="container" id="lista">
+    <div class="empty-state">Carregando...</div>
+  </div>
+
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script>
+    const sessao = requireSession("motorista");
+
+    if (sessao) {
+      document.getElementById("nome-motorista").textContent = sessao.nome;
+
+      const tracking = { cargaId: null, watchId: null, ultimoEnvio: 0 };
+
+      async function carregarCargas() {
+        const listaEl = document.getElementById("lista");
+        try {
+          const resp = await callFunction("minhas-cargas", {
+            acao: "listar_motorista",
+            motorista_id: sessao.id
+          });
+          renderizar(resp.cargas || []);
+        } catch (err) {
+          listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+        }
+      }
+
+      function renderizar(cargas) {
+        const listaEl = document.getElementById("lista");
+
+        if (cargas.length === 0) {
+          listaEl.innerHTML = '<div class="empty-state">Nenhuma carga no momento.</div>';
+          pararRastreio();
+          return;
+        }
+
+        listaEl.innerHTML = cargas.map((c) => `
+          <div class="card">
+            <span class="badge ${statusClass(c.status)}">${statusLabel(c.status)}</span>
+            <h3>${c.posto_nome}</h3>
+            <div class="row"><span>Combustível</span><span>${c.combustivel}</span></div>
+            <div class="row"><span>Volume</span><span>${c.volume_total} L</span></div>
+            ${c.numero_nota_fiscal ? `<div class="row"><span>Nota fiscal</span><span>${c.numero_nota_fiscal}</span></div>` : ""}
+            ${c.status === "em_transito" && c.distancia_restante_km != null
+              ? `<div class="row"><span>Distância restante</span><span>${Number(c.distancia_restante_km).toFixed(1)} km</span></div>
+                 <div class="row"><span>ETA</span><span>${c.tempo_estimado_min ?? "-"} min</span></div>`
+              : ""}
+            <div id="acao-${c.id}"></div>
+          </div>
+        `).join("");
+
+        cargas.forEach((c) => {
+          const acaoEl = document.getElementById(`acao-${c.id}`);
+          if (c.status === "aguardando_carregamento") {
+            const btn = document.createElement("button");
+            btn.textContent = "Carreguei, iniciar viagem";
+            btn.onclick = () => iniciarViagem(c);
+            acaoEl.appendChild(btn);
+          } else if (c.status === "em_transito") {
+            const btn = document.createElement("button");
+            btn.className = "danger";
+            btn.textContent = "Entreguei";
+            btn.onclick = () => confirmarEntrega(c);
+            acaoEl.appendChild(btn);
+            if (tracking.cargaId !== c.id) iniciarRastreio(c.id);
+          }
+        });
+      }
+
+      function obterPosicao() {
+        return new Promise((resolve, reject) => {
+          if (!("geolocation" in navigator)) {
+            reject(new Error("Este navegador não suporta GPS"));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 20000
+          });
+        });
+      }
+
+      async function iniciarViagem(carga) {
+        try {
+          const pos = await obterPosicao();
+          await callFunction("minhas-cargas", {
+            acao: "confirmar_carregamento",
+            carga_id: carga.id,
+            motorista_id: sessao.id,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude
+          });
+          await carregarCargas();
+        } catch (err) {
+          alert("Não foi possível iniciar a viagem: " + err.message);
+        }
+      }
+
+      function iniciarRastreio(cargaId) {
+        pararRastreio();
+        tracking.cargaId = cargaId;
+        tracking.watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const agora = Date.now();
+            if (agora - tracking.ultimoEnvio < 15000) return;
+            tracking.ultimoEnvio = agora;
+            callFunction("minhas-cargas", {
+              acao: "atualizar_posicao",
+              carga_id: cargaId,
+              motorista_id: sessao.id,
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude
+            }).catch(() => {});
+          },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+        );
+      }
+
+      function pararRastreio() {
+        if (tracking.watchId != null) {
+          navigator.geolocation.clearWatch(tracking.watchId);
+        }
+        tracking.watchId = null;
+        tracking.cargaId = null;
+      }
+
+      async function confirmarEntrega(carga) {
+        if (!confirm("Confirmar entrega desta carga?")) return;
+        try {
+          await callFunction("minhas-cargas", {
+            acao: "confirmar_entrega",
+            carga_id: carga.id,
+            motorista_id: sessao.id
+          });
+          pararRastreio();
+          await carregarCargas();
+        } catch (err) {
+          alert("Erro ao confirmar entrega: " + err.message);
+        }
+      }
+
+      carregarCargas();
+      setInterval(carregarCargas, 20000);
+    }
+  </script>
+</body>
+</html>

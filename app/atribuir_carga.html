@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Atribuir carga - Rede Benedetti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="top-bar">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="">
+      <h1>Atribuir carga</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <form id="form-carga">
+      <label for="posto">Posto de destino</label>
+      <select id="posto" required>
+        <option value="">Carregando postos...</option>
+      </select>
+
+      <label for="motorista">Motorista</label>
+      <select id="motorista" required>
+        <option value="">Carregando motoristas...</option>
+      </select>
+
+      <label for="combustivel">Combustível</label>
+      <select id="combustivel" required>
+        <option value="">Selecione</option>
+        <option>Diesel S10</option>
+        <option>Etanol</option>
+        <option>Gasolina</option>
+        <option>Gasolina Aditivada</option>
+      </select>
+
+      <label for="volume">Volume total (litros)</label>
+      <input id="volume" type="number" min="1" step="0.01" required>
+
+      <label for="nota">Número da nota fiscal (opcional)</label>
+      <input id="nota" type="text">
+
+      <button type="submit" id="btn-salvar">Atribuir carga</button>
+      <div id="msg"></div>
+    </form>
+
+    <div id="pendentes"></div>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script>
+    const sb = getSupabaseClient();
+    const selPosto = document.getElementById("posto");
+    const selMotorista = document.getElementById("motorista");
+
+    async function carregarPostos() {
+      const { data, error } = await sb.from("postos_publico").select("id, nome").order("nome");
+      if (error || !data) {
+        selPosto.innerHTML = '<option value="">Erro ao carregar postos</option>';
+        return;
+      }
+      selPosto.innerHTML = '<option value="">Selecione o posto</option>' +
+        data.map((p) => `<option value="${p.id}">${p.nome}</option>`).join("");
+    }
+
+    async function carregarMotoristas() {
+      const { data, error } = await sb.from("motoristas_publico").select("id, nome").order("nome");
+      if (error || !data) {
+        selMotorista.innerHTML = '<option value="">Erro ao carregar motoristas</option>';
+        return;
+      }
+      selMotorista.innerHTML = '<option value="">Selecione o motorista</option>' +
+        data.map((m) => `<option value="${m.id}">${m.nome}</option>`).join("");
+    }
+
+    async function carregarPendentes(postoId) {
+      const el = document.getElementById("pendentes");
+      if (!postoId) { el.innerHTML = ""; return; }
+      try {
+        const resp = await callFunction("minhas-cargas", { acao: "listar_gerente", posto_id: postoId });
+        const cargas = resp.cargas || [];
+        if (cargas.length === 0) {
+          el.innerHTML = '<p class="sub" style="color:var(--text-dim)">Nenhuma carga pendente para este posto.</p>';
+          return;
+        }
+        el.innerHTML = '<label>Cargas já pendentes neste posto</label>' + cargas.map((c) => `
+          <div class="card">
+            <span class="badge ${statusClass(c.status)}">${statusLabel(c.status)}</span>
+            <h3>${c.motorista_nome}</h3>
+            <div class="row"><span>Combustível</span><span>${c.combustivel}</span></div>
+            <div class="row"><span>Volume</span><span>${c.volume_total} L</span></div>
+          </div>
+        `).join("");
+      } catch {
+        el.innerHTML = "";
+      }
+    }
+
+    selPosto.addEventListener("change", () => carregarPendentes(selPosto.value));
+
+    document.getElementById("form-carga").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msgEl = document.getElementById("msg");
+      const btn = document.getElementById("btn-salvar");
+      msgEl.innerHTML = "";
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+
+      try {
+        const postoId = selPosto.value;
+        const posto = selPosto.selectedOptions[0].textContent;
+
+        await callFunction("atribuir-carga", {
+          posto_id: postoId,
+          posto_nome: posto,
+          motorista_id: selMotorista.value,
+          combustivel: document.getElementById("combustivel").value,
+          volume_total: Number(document.getElementById("volume").value),
+          numero_nota_fiscal: document.getElementById("nota").value || null
+        });
+
+        msgEl.innerHTML = '<div class="success-msg">Carga atribuída com sucesso!</div>';
+        document.getElementById("combustivel").value = "";
+        document.getElementById("volume").value = "";
+        document.getElementById("nota").value = "";
+        carregarPendentes(postoId);
+      } catch (err) {
+        msgEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Atribuir carga";
+      }
+    });
+
+    carregarPostos();
+    carregarMotoristas();
+  </script>
+</body>
+</html>

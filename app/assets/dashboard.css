@@ -1,0 +1,139 @@
+/* Estilos exclusivos da dashboard - layout mais largo, pensado pra desktop */
+
+.dash-shell {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.dash-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dash-top .logo-row h1 { font-size: 18px; }
+.dash-top .actions { display: flex; align-items: center; gap: 12px; }
+.dash-top .actions a.btn, .dash-top .actions button {
+  width: auto;
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 14px;
+}
+.dash-top .updated-at { font-size: 12px; color: var(--text-dim); }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.kpi-card .kpi-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.kpi-card .kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.kpi-card.accent-blue .kpi-value { color: var(--blue); }
+.kpi-card.accent-amber .kpi-value { color: var(--amber); }
+.kpi-card.accent-green .kpi-value { color: var(--green); }
+.kpi-card.accent-primary .kpi-value { color: var(--primary); }
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.panel h2 {
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+
+.legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.legend-item { display: flex; align-items: center; gap: 8px; }
+.legend-item b { margin-left: auto; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+
+.hbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+.hbar-label { width: 110px; flex-shrink: 0; color: var(--text-dim); }
+.hbar-track { flex: 1; background: var(--bg-input); border-radius: 999px; height: 10px; overflow: hidden; }
+.hbar-fill { height: 100%; border-radius: 999px; }
+.hbar-value { width: 28px; text-align: right; font-weight: 600; }
+
+#mapa-dash {
+  width: 100%;
+  height: 320px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.tabela-wrap {
+  overflow-x: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+table.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 720px;
+}
+
+table.dash-table th {
+  text-align: left;
+  padding: 12px 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+table.dash-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+table.dash-table tr:last-child td { border-bottom: none; }
+
+@media (max-width: 860px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .dash-shell { padding: 12px; }
+}

@@ -1,0 +1,230 @@
+:root {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-input: #0b1220;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --border: #334155;
+  --primary: #f97316;
+  --primary-dark: #c2410c;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.top-bar h1 {
+  font-size: 17px;
+  margin: 0;
+}
+
+.top-bar .sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.container {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-row img { width: 32px; height: 32px; }
+
+button, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  text-decoration: none;
+  transition: opacity .15s ease;
+}
+
+button:active, .btn:active { opacity: .8; }
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+button.danger { background: var(--red); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 14px 0 6px;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 16px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.card .row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-aguardando { background: rgba(245,158,11,.15); color: var(--amber); }
+.status-transito { background: rgba(59,130,246,.15); color: var(--blue); }
+.status-entregue { background: rgba(34,197,94,.15); color: var(--green); }
+.status-cancelada { background: rgba(239,68,68,.15); color: var(--red); }
+
+.error-msg {
+  background: rgba(239,68,68,.12);
+  color: #fca5a5;
+  border: 1px solid rgba(239,68,68,.4);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.success-msg {
+  background: rgba(34,197,94,.12);
+  color: #86efac;
+  border: 1px solid rgba(34,197,94,.4);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 40px 16px;
+  font-size: 14px;
+}
+
+.role-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.role-picker a.btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  flex-direction: column;
+  padding: 22px 16px;
+}
+
+.role-picker a.btn strong { font-size: 17px; }
+.role-picker a.btn span { font-size: 13px; color: var(--text-dim); font-weight: 400; }
+
+#mapa {
+  width: 100%;
+  height: 260px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+
+.tag-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  width: auto;
+  padding: 6px 0;
+  font-size: 13px;
+  margin: 0;
+  text-decoration: underline;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-input: #f1f5f9;
+    --text: #0f172a;
+    --text-dim: #64748b;
+    --border: #e2e8f0;
+  }
+}

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Cadastrar posto - Rede Benedetti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .lista-item { font-size: 13px; color: var(--text-dim); padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; }
+  .lista-item:last-child { border-bottom: none; }
+  .lista-item .cnpj { font-family: monospace; color: var(--text); }
+  .share-box {
+    background: var(--bg-input); border: 1px dashed var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: 13px; color: var(--text-dim); margin-top: 20px;
+  }
+  .share-box a { color: var(--primary); }
+</style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="">
+      <h1>Cadastrar posto</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <form id="form-posto">
+      <label for="posto-nome">Nome do posto</label>
+      <input id="posto-nome" type="text" required>
+
+      <label for="posto-cnpj">CNPJ do posto</label>
+      <input id="posto-cnpj" type="text" inputmode="numeric" placeholder="12345678000199" required>
+
+      <label for="posto-lat">Latitude (opcional)</label>
+      <input id="posto-lat" type="number" step="0.0000001" placeholder="-22.2171">
+
+      <label for="posto-lng">Longitude (opcional)</label>
+      <input id="posto-lng" type="number" step="0.0000001" placeholder="-49.9500">
+
+      <button type="submit">Cadastrar posto</button>
+      <div class="msg"></div>
+    </form>
+
+    <div class="share-box">
+      Depois de cadastrar o posto, envie pro gerente dele o link de <a href="cadastro_gerente.html">cadastro_gerente.html</a> — ele mesmo cria o próprio acesso usando o CNPJ acima. Pros motoristas, envie <a href="cadastro_motorista.html">cadastro_motorista.html</a>.
+    </div>
+
+    <div style="margin-top:20px">
+      <label>Postos já cadastrados</label>
+      <div id="lista-postos"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script>
+    const sb = getSupabaseClient();
+
+    function mostrarMsg(form, texto, ok) {
+      form.querySelector(".msg").innerHTML = `<div class="${ok ? "success-msg" : "error-msg"}">${texto}</div>`;
+    }
+
+    async function carregarPostos() {
+      const { data } = await sb.from("postos_publico").select("id, nome").order("nome");
+      const lista = data || [];
+      document.getElementById("lista-postos").innerHTML = lista.length
+        ? lista.map((p) => `<div class="lista-item"><span>${p.nome}</span></div>`).join("")
+        : '<div class="lista-item">Nenhum posto cadastrado ainda.</div>';
+    }
+
+    document.getElementById("form-posto").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      try {
+        await callFunction("cadastro", {
+          tipo: "posto",
+          nome: document.getElementById("posto-nome").value.trim(),
+          cnpj: document.getElementById("posto-cnpj").value.trim().replace(/\D/g, ""),
+          latitude: document.getElementById("posto-lat").value || null,
+          longitude: document.getElementById("posto-lng").value || null
+        });
+        mostrarMsg(form, "Posto cadastrado com sucesso!", true);
+        form.reset();
+        carregarPostos();
+      } catch (err) {
+        mostrarMsg(form, err.message, false);
+      }
+    });
+
+    carregarPostos();
+  </script>
+</body>
+</html>

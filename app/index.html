@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Rede Benedetti - Cargas</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<meta name="theme-color" content="#0f172a">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="top-bar">
+    <div class="logo-row">
+      <img src="icons/icon.svg" alt="">
+      <h1>Rede Benedetti</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <p class="sub" style="color:var(--text-dim)">Rastreamento de cargas de combustível em tempo real. Escolha como você acessa:</p>
+
+    <div class="role-picker">
+      <a class="btn" href="dashboard.html">
+        <strong>Dashboard</strong>
+        <span>Visão geral de toda a rede em tempo real</span>
+      </a>
+      <a class="btn" href="atribuir_carga.html">
+        <strong>Matriz</strong>
+        <span>Lançar e atribuir uma nova carga</span>
+      </a>
+      <a class="btn" href="cadastro.html">
+        <strong>Cadastrar posto</strong>
+        <span>Novo posto na rede (uso interno da matriz)</span>
+      </a>
+      <a class="btn" href="login.html?tipo=motorista">
+        <strong>Motorista</strong>
+        <span>Ver minhas cargas e iniciar viagem</span>
+      </a>
+      <a class="btn" href="login.html?tipo=gerente">
+        <strong>Gerente de posto</strong>
+        <span>Acompanhar cargas a caminho</span>
+      </a>
+    </div>
+
+    <p class="sub" style="color:var(--text-dim); margin-top:24px">Links de autocadastro pra enviar (WhatsApp, etc):</p>
+    <div class="role-picker">
+      <a class="btn secondary" href="cadastro_motorista.html">
+        <strong>Cadastro de motorista</strong>
+        <span>Envie este link pra cada motorista novo</span>
+      </a>
+      <a class="btn secondary" href="cadastro_gerente.html">
+        <strong>Cadastro de gerente</strong>
+        <span>Envie este link pro gerente de cada posto</span>
+      </a>
+    </div>
+  </div>
+
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+</body>
+</html>
