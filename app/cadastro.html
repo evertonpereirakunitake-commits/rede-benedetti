@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Cadastrar posto - Rede Benedetti</title>
+<title>Cadastros - Rede Benedetti</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#0f172a">
@@ -12,24 +12,28 @@
   .lista-item { font-size: 13px; color: var(--text-dim); padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .lista-item:last-child { border-bottom: none; }
   .lista-item .nome { color: var(--text); font-weight: 600; }
-  .lista-item .cnpj { font-family: var(--font-mono, monospace); color: var(--text-dim); font-size: 12.5px; }
-  .lista-item .copiar {
+  .lista-item .cnpj, .lista-item .tel { font-family: var(--font-mono, monospace); color: var(--text-dim); font-size: 12.5px; }
+  .lista-item .acoes { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .lista-item .copiar, .lista-item .excluir {
     width: auto; margin: 0; padding: 5px 10px; font-size: 11.5px;
     background: var(--bg-input); border: 1px solid var(--border-strong); color: var(--text-dim);
   }
   .lista-item .copiar:hover { color: var(--primary); border-color: var(--primary); filter: none; }
+  .lista-item .excluir:hover { color: var(--red); border-color: var(--red); filter: none; }
   .share-box {
     background: var(--bg-input); border: 1px dashed var(--border); border-radius: 10px;
     padding: 12px 14px; font-size: 13px; color: var(--text-dim); margin-top: 20px;
   }
   .share-box a { color: var(--primary); }
+  .secao { margin-top: 30px; }
+  .secao .msg-lista { margin-top: 8px; }
 </style>
 </head>
 <body>
   <div class="top-bar">
     <div class="logo-row">
       <img src="icons/icon.svg" alt="">
-      <h1>Cadastrar posto</h1>
+      <h1>Cadastros</h1>
     </div>
   </div>
 
@@ -55,9 +59,16 @@
       Depois de cadastrar o posto, envie pro gerente dele o link de <a href="cadastro_gerente.html">cadastro_gerente.html</a> — ele mesmo cria o próprio acesso usando o CNPJ acima. Pros motoristas, envie <a href="cadastro_motorista.html">cadastro_motorista.html</a>.
     </div>
 
-    <div style="margin-top:20px">
-      <label>Postos já cadastrados</label>
+    <div class="secao">
+      <label>Postos cadastrados</label>
       <div id="lista-postos"></div>
+      <div class="msg-lista" id="msg-postos"></div>
+    </div>
+
+    <div class="secao">
+      <label>Motoristas cadastrados</label>
+      <div id="lista-motoristas"></div>
+      <div class="msg-lista" id="msg-motoristas"></div>
     </div>
   </div>
 
@@ -75,18 +86,19 @@
       return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
     }
 
-    async function copiarCnpj(cnpj, btn) {
+    async function copiarTexto(texto, btn) {
       try {
-        await navigator.clipboard.writeText(cnpj);
+        await navigator.clipboard.writeText(texto);
         const original = btn.textContent;
         btn.textContent = "Copiado!";
         setTimeout(() => { btn.textContent = original; }, 1500);
       } catch {
-        alert("CNPJ: " + cnpj);
+        alert(texto);
       }
     }
-    window.copiarCnpj = copiarCnpj;
+    window.copiarTexto = copiarTexto;
 
+    // ---------- POSTOS ----------
     async function carregarPostos() {
       const listaEl = document.getElementById("lista-postos");
       try {
@@ -99,13 +111,29 @@
                   <div class="nome">${p.nome}</div>
                   <div class="cnpj">${p.cnpj ? formatarCnpj(p.cnpj) : "sem CNPJ cadastrado"}</div>
                 </div>
-                ${p.cnpj ? `<button type="button" class="copiar" onclick="copiarCnpj('${p.cnpj}', this)">Copiar CNPJ</button>` : ""}
+                <div class="acoes">
+                  ${p.cnpj ? `<button type="button" class="copiar" onclick="copiarTexto('${p.cnpj}', this)">Copiar CNPJ</button>` : ""}
+                  <button type="button" class="excluir" onclick="excluirPosto('${p.id}', '${p.nome.replace(/'/g, "\\'")}')">Excluir</button>
+                </div>
               </div>`).join("")
           : '<div class="lista-item">Nenhum posto cadastrado ainda.</div>';
       } catch (err) {
         listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
       }
     }
+
+    async function excluirPosto(id, nome) {
+      if (!confirm(`Excluir o posto "${nome}"? Isso também remove o acesso do gerente dele, se houver.`)) return;
+      const msgEl = document.getElementById("msg-postos");
+      msgEl.innerHTML = "";
+      try {
+        await callFunction("cadastro", { tipo: "excluir_posto", id });
+        carregarPostos();
+      } catch (err) {
+        msgEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+      }
+    }
+    window.excluirPosto = excluirPosto;
 
     document.getElementById("form-posto").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -126,7 +154,44 @@
       }
     });
 
+    // ---------- MOTORISTAS ----------
+    async function carregarMotoristas() {
+      const listaEl = document.getElementById("lista-motoristas");
+      try {
+        const resp = await callFunction("cadastro", { tipo: "listar_motoristas" });
+        const lista = resp.motoristas || [];
+        listaEl.innerHTML = lista.length
+          ? lista.map((m) => `
+              <div class="lista-item">
+                <div>
+                  <div class="nome">${m.nome}</div>
+                  <div class="tel">${m.telefone}${m.placa_padrao ? " · " + m.placa_padrao : ""}</div>
+                </div>
+                <div class="acoes">
+                  <button type="button" class="excluir" onclick="excluirMotorista('${m.id}', '${m.nome.replace(/'/g, "\\'")}')">Excluir</button>
+                </div>
+              </div>`).join("")
+          : '<div class="lista-item">Nenhum motorista cadastrado ainda.</div>';
+      } catch (err) {
+        listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+      }
+    }
+
+    async function excluirMotorista(id, nome) {
+      if (!confirm(`Excluir o motorista "${nome}"? Ele não vai mais conseguir entrar no app.`)) return;
+      const msgEl = document.getElementById("msg-motoristas");
+      msgEl.innerHTML = "";
+      try {
+        await callFunction("cadastro", { tipo: "excluir_motorista", id });
+        carregarMotoristas();
+      } catch (err) {
+        msgEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+      }
+    }
+    window.excluirMotorista = excluirMotorista;
+
     carregarPostos();
+    carregarMotoristas();
   </script>
 </body>
 </html>

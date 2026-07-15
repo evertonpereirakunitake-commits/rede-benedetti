@@ -40,6 +40,49 @@ Deno.serve(async (req) => {
       return json({ ok: true, postos: data });
     }
 
+    if (tipo === 'listar_motoristas') {
+      const { data, error } = await sb
+        .from('motoristas')
+        .select('id, nome, telefone, placa_padrao')
+        .eq('ativo', true)
+        .order('nome');
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true, motoristas: data });
+    }
+
+    if (tipo === 'excluir_posto') {
+      const { id } = body;
+      if (!id) return json({ error: 'id é obrigatório' }, 400);
+      // bloqueia se tiver QUALQUER carga (inclusive histórico), pois excluir o posto
+      // apaga em cascata as cargas vinculadas a ele no banco
+      const { count } = await sb
+        .from('cargas_transporte')
+        .select('id', { count: 'exact', head: true })
+        .eq('posto_id', id);
+      if (count && count > 0) {
+        return json({ error: `Este posto tem ${count} carga(s) no histórico e não pode ser excluído (evita perder registros de entregas).` }, 400);
+      }
+      const { error } = await sb.from('postos').delete().eq('id', id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
+    if (tipo === 'excluir_motorista') {
+      const { id } = body;
+      if (!id) return json({ error: 'id é obrigatório' }, 400);
+      const { count } = await sb
+        .from('cargas_transporte')
+        .select('id', { count: 'exact', head: true })
+        .eq('motorista_id', id)
+        .in('status', ['aguardando_carregamento', 'em_transito']);
+      if (count && count > 0) {
+        return json({ error: `Este motorista tem ${count} carga(s) ativa(s). Finalize ou cancele antes de excluir.` }, 400);
+      }
+      const { error } = await sb.from('motoristas').update({ ativo: false }).eq('id', id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     if (tipo === 'posto') {
       const { nome, cnpj, latitude, longitude } = body;
       if (!nome) return json({ error: 'Nome do posto é obrigatório' }, 400);
