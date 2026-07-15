@@ -31,6 +31,15 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { tipo } = body;
 
+    if (tipo === 'listar_postos') {
+      const { data, error } = await sb
+        .from('postos')
+        .select('id, nome, cnpj, latitude, longitude')
+        .order('nome');
+      if (error) return json({ error: error.message }, 500);
+      return json({ ok: true, postos: data });
+    }
+
     if (tipo === 'posto') {
       const { nome, cnpj, latitude, longitude } = body;
       if (!nome) return json({ error: 'Nome do posto é obrigatório' }, 400);

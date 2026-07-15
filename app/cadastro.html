@@ -9,9 +9,15 @@
 <meta name="theme-color" content="#0f172a">
 <link rel="stylesheet" href="assets/style.css">
 <style>
-  .lista-item { font-size: 13px; color: var(--text-dim); padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; }
+  .lista-item { font-size: 13px; color: var(--text-dim); padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .lista-item:last-child { border-bottom: none; }
-  .lista-item .cnpj { font-family: monospace; color: var(--text); }
+  .lista-item .nome { color: var(--text); font-weight: 600; }
+  .lista-item .cnpj { font-family: var(--font-mono, monospace); color: var(--text-dim); font-size: 12.5px; }
+  .lista-item .copiar {
+    width: auto; margin: 0; padding: 5px 10px; font-size: 11.5px;
+    background: var(--bg-input); border: 1px solid var(--border-strong); color: var(--text-dim);
+  }
+  .lista-item .copiar:hover { color: var(--primary); border-color: var(--primary); filter: none; }
   .share-box {
     background: var(--bg-input); border: 1px dashed var(--border); border-radius: 10px;
     padding: 12px 14px; font-size: 13px; color: var(--text-dim); margin-top: 20px;
@@ -55,22 +61,50 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="assets/config.js"></script>
   <script src="assets/app-common.js"></script>
   <script>
-    const sb = getSupabaseClient();
-
     function mostrarMsg(form, texto, ok) {
       form.querySelector(".msg").innerHTML = `<div class="${ok ? "success-msg" : "error-msg"}">${texto}</div>`;
     }
 
+    function formatarCnpj(cnpj) {
+      if (!cnpj) return null;
+      const d = cnpj.replace(/\D/g, "");
+      if (d.length !== 14) return cnpj;
+      return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
+    }
+
+    async function copiarCnpj(cnpj, btn) {
+      try {
+        await navigator.clipboard.writeText(cnpj);
+        const original = btn.textContent;
+        btn.textContent = "Copiado!";
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      } catch {
+        alert("CNPJ: " + cnpj);
+      }
+    }
+    window.copiarCnpj = copiarCnpj;
+
     async function carregarPostos() {
-      const { data } = await sb.from("postos_publico").select("id, nome").order("nome");
-      const lista = data || [];
-      document.getElementById("lista-postos").innerHTML = lista.length
-        ? lista.map((p) => `<div class="lista-item"><span>${p.nome}</span></div>`).join("")
-        : '<div class="lista-item">Nenhum posto cadastrado ainda.</div>';
+      const listaEl = document.getElementById("lista-postos");
+      try {
+        const resp = await callFunction("cadastro", { tipo: "listar_postos" });
+        const lista = resp.postos || [];
+        listaEl.innerHTML = lista.length
+          ? lista.map((p) => `
+              <div class="lista-item">
+                <div>
+                  <div class="nome">${p.nome}</div>
+                  <div class="cnpj">${p.cnpj ? formatarCnpj(p.cnpj) : "sem CNPJ cadastrado"}</div>
+                </div>
+                ${p.cnpj ? `<button type="button" class="copiar" onclick="copiarCnpj('${p.cnpj}', this)">Copiar CNPJ</button>` : ""}
+              </div>`).join("")
+          : '<div class="lista-item">Nenhum posto cadastrado ainda.</div>';
+      } catch (err) {
+        listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+      }
     }
 
     document.getElementById("form-posto").addEventListener("submit", async (e) => {
