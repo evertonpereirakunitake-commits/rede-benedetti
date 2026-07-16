@@ -21,8 +21,11 @@
     <button class="secondary tag-btn" onclick="logout()">Sair</button>
   </div>
 
-  <div class="container" id="lista">
-    <div class="empty-state">Carregando...</div>
+  <div class="container">
+    <button id="btn-notif" class="secondary" style="display:none">Ativar avisos de carga nova</button>
+    <div id="lista">
+      <div class="empty-state">Carregando...</div>
+    </div>
   </div>
 
   <script src="assets/config.js"></script>
@@ -33,7 +36,18 @@
     if (sessao) {
       document.getElementById("nome-motorista").textContent = sessao.nome;
 
+      if ("Notification" in window && Notification.permission === "default") {
+        const btnNotif = document.getElementById("btn-notif");
+        btnNotif.style.display = "block";
+        btnNotif.onclick = () => {
+          Notification.requestPermission().then(() => {
+            btnNotif.style.display = "none";
+          });
+        };
+      }
+
       const tracking = { cargaId: null, watchId: null, ultimoEnvio: 0 };
+      let idsConhecidos = null; // null = ainda não carregou nada (evita avisar na primeira vez)
 
       async function carregarCargas() {
         const listaEl = document.getElementById("lista");
@@ -42,10 +56,23 @@
             acao: "listar_motorista",
             motorista_id: sessao.id
           });
+          avisarCargasNovas(resp.cargas || []);
           renderizar(resp.cargas || []);
         } catch (err) {
           listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
         }
+      }
+
+      function avisarCargasNovas(cargas) {
+        const idsAtuais = new Set(cargas.map((c) => c.id));
+        if (idsConhecidos) {
+          const novas = cargas.filter((c) => !idsConhecidos.has(c.id));
+          if (novas.length > 0) {
+            tocarAlerta();
+            notificar("Carga nova pra você!", `${novas[0].posto_nome} - ${novas[0].combustivel}`);
+          }
+        }
+        idsConhecidos = idsAtuais;
       }
 
       function renderizar(cargas) {

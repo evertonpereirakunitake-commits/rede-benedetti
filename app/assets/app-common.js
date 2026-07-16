@@ -91,6 +91,49 @@ function notificar(titulo, corpo) {
   }
 }
 
+// ---------- Alerta sonoro (bipe sintetizado, sem precisar de arquivo de áudio) ----------
+// Navegadores só deixam tocar som depois de o usuário interagir com a página
+// (tocar na tela, clicar em algo). Por isso "destravamos" no primeiro toque.
+let __audioCtx = null;
+
+function __destravarAudio() {
+  if (!__audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) __audioCtx = new AC();
+  }
+  if (__audioCtx && __audioCtx.state === "suspended") {
+    __audioCtx.resume().catch(() => {});
+  }
+}
+document.addEventListener("click", __destravarAudio);
+document.addEventListener("touchstart", __destravarAudio);
+
+// Toca um bipe curto de duas notas (tipo "novo aviso"). Chame sempre que
+// uma carga nova chegar pro motorista, ou o status mudar pro gerente.
+function tocarAlerta() {
+  try {
+    if (!__audioCtx) return;
+    const ctx = __audioCtx;
+    const t0 = ctx.currentTime;
+    [660, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const inicio = t0 + i * 0.16;
+      gain.gain.setValueAtTime(0.0001, inicio);
+      gain.gain.exponentialRampToValueAtTime(0.28, inicio + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(inicio);
+      osc.stop(inicio + 0.3);
+    });
+  } catch {
+    // navegador sem suporte a Web Audio - ignora silenciosamente
+  }
+}
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {});

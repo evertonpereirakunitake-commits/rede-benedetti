@@ -154,16 +154,23 @@
         });
       }
 
+      let primeiraChecagem = true;
+
       function checarNotificacoes(cargas) {
         cargas.forEach((c) => {
           const anterior = statusAnterior[c.id];
-          if (anterior === undefined) {
-            notificar("Nova carga atribuída", `${c.motorista_nome} - ${c.combustivel}`);
-          } else if (anterior === "aguardando_carregamento" && c.status === "em_transito") {
-            notificar("Carga a caminho", `${c.motorista_nome} saiu com ${c.combustivel}`);
+          if (!primeiraChecagem) {
+            if (anterior === undefined) {
+              tocarAlerta();
+              notificar("Nova carga atribuída", `${c.motorista_nome} - ${c.combustivel}`);
+            } else if (anterior === "aguardando_carregamento" && c.status === "em_transito") {
+              tocarAlerta();
+              notificar("Carga a caminho", `${c.motorista_nome} saiu com ${c.combustivel}`);
+            }
           }
           statusAnterior[c.id] = c.status;
         });
+        primeiraChecagem = false;
       }
 
       carregarPosto().then(carregarCargas);
