@@ -70,6 +70,12 @@
       <div id="lista-motoristas"></div>
       <div class="msg-lista" id="msg-motoristas"></div>
     </div>
+
+    <div class="secao">
+      <label>Gerentes cadastrados</label>
+      <div id="lista-gerentes"></div>
+      <div class="msg-lista" id="msg-gerentes"></div>
+    </div>
   </div>
 
   <script src="assets/config.js"></script>
@@ -190,8 +196,45 @@
     }
     window.excluirMotorista = excluirMotorista;
 
+    // ---------- GERENTES ----------
+    async function carregarGerentes() {
+      const listaEl = document.getElementById("lista-gerentes");
+      try {
+        const resp = await callFunction("cadastro", { tipo: "listar_gerentes" });
+        const lista = resp.gerentes || [];
+        listaEl.innerHTML = lista.length
+          ? lista.map((g) => `
+              <div class="lista-item">
+                <div>
+                  <div class="nome">${g.nome}</div>
+                  <div class="tel">${g.posto_nome || "posto não encontrado"}${g.telefone ? " · " + g.telefone : ""}</div>
+                </div>
+                <div class="acoes">
+                  <button type="button" class="excluir" onclick="excluirGerente('${g.id}', '${g.nome.replace(/'/g, "\\'")}')">Excluir</button>
+                </div>
+              </div>`).join("")
+          : '<div class="lista-item">Nenhum gerente cadastrado ainda.</div>';
+      } catch (err) {
+        listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+      }
+    }
+
+    async function excluirGerente(id, nome) {
+      if (!confirm(`Excluir o gerente "${nome}"? O posto fica sem gerente até alguém se cadastrar de novo.`)) return;
+      const msgEl = document.getElementById("msg-gerentes");
+      msgEl.innerHTML = "";
+      try {
+        await callFunction("cadastro", { tipo: "excluir_gerente", id });
+        carregarGerentes();
+      } catch (err) {
+        msgEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
+      }
+    }
+    window.excluirGerente = excluirGerente;
+
     carregarPostos();
     carregarMotoristas();
+    carregarGerentes();
   </script>
 </body>
 </html>

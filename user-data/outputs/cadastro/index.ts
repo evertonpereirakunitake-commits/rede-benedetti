@@ -50,6 +50,32 @@ Deno.serve(async (req) => {
       return json({ ok: true, motoristas: data });
     }
 
+    if (tipo === 'listar_gerentes') {
+      const { data, error } = await sb
+        .from('gerentes')
+        .select('id, nome, telefone, posto_id, postos(nome)')
+        .eq('ativo', true)
+        .order('nome');
+      if (error) return json({ error: error.message }, 500);
+      const gerentes = (data || []).map((g: any) => ({
+        id: g.id,
+        nome: g.nome,
+        telefone: g.telefone,
+        posto_nome: g.postos ? g.postos.nome : null
+      }));
+      return json({ ok: true, gerentes });
+    }
+
+    if (tipo === 'excluir_gerente') {
+      const { id } = body;
+      if (!id) return json({ error: 'id é obrigatório' }, 400);
+      // exclusão definitiva (não soft-delete): gerentes.posto_id é UNIQUE,
+      // então precisa liberar o posto de verdade pra um gerente novo poder se cadastrar
+      const { error } = await sb.from('gerentes').delete().eq('id', id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     if (tipo === 'excluir_posto') {
       const { id } = body;
       if (!id) return json({ error: 'id é obrigatório' }, 400);
