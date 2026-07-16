@@ -76,6 +76,21 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (tipo === 'excluir_carga') {
+      const { id } = body;
+      if (!id) return json({ error: 'id é obrigatório' }, 400);
+      // não deixa excluir carga já entregue (perderia o histórico de entregas) -
+      // só cargas ainda ativas (aguardando ou em trânsito), pra corrigir erro de lançamento
+      const { data: carga } = await sb.from('cargas_transporte').select('status').eq('id', id).single();
+      if (!carga) return json({ error: 'Carga não encontrada' }, 404);
+      if (carga.status === 'entregue') {
+        return json({ error: 'Esta carga já foi entregue e não pode ser excluída (fica no histórico).' }, 400);
+      }
+      const { error } = await sb.from('cargas_transporte').delete().eq('id', id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     if (tipo === 'excluir_posto') {
       const { id } = body;
       if (!id) return json({ error: 'id é obrigatório' }, 400);

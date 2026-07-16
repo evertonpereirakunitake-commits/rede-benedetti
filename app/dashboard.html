@@ -88,11 +88,11 @@
           <thead>
             <tr>
               <th>Posto</th><th>Motorista</th><th>Placa</th><th>Combustível</th>
-              <th class="r">Volume</th><th>Status</th><th class="r">Distância</th><th class="r">ETA</th>
+              <th class="r">Volume</th><th>Status</th><th class="r">Distância</th><th class="r">ETA</th><th></th>
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="8" class="empty">Carregando manifesto…</td></tr>
+            <tr><td colspan="9" class="empty">Carregando manifesto…</td></tr>
           </tbody>
         </table>
       </div>
@@ -337,7 +337,7 @@
     function renderTabela(cargas) {
       const tb = document.getElementById("tbody");
       document.getElementById("manifest-count").textContent = `${cargas.length} ${cargas.length === 1 ? "registro" : "registros"}`;
-      if (!cargas.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">Nenhuma carga ativa no momento.</td></tr>'; return; }
+      if (!cargas.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma carga ativa no momento.</td></tr>'; return; }
       const chip = {
         aguardando_carregamento: '<span class="status-chip wait"><span class="d"></span>Aguardando</span>',
         em_transito: '<span class="status-chip transit"><span class="d"></span>Em trânsito</span>'
@@ -353,8 +353,20 @@
           <td>${chip[c.status] || c.status}</td>
           <td class="r mono">${c.distancia_restante_km != null ? Number(c.distancia_restante_km).toFixed(1) + " km" : "—"}</td>
           <td class="r mono">${c.tempo_estimado_min != null ? c.tempo_estimado_min + " min" : "—"}</td>
+          <td class="r"><button type="button" class="icon-btn" style="padding:6px 10px;font-size:12px" onclick="excluirCarga('${c.id}', '${c.posto_nome.replace(/'/g, "\\'")}')">Excluir</button></td>
         </tr>`).join("");
     }
+
+    async function excluirCarga(id, postoNome) {
+      if (!confirm(`Excluir esta carga (${postoNome})? Use isso só pra corrigir erro de lançamento.`)) return;
+      try {
+        await callFunction("cadastro", { tipo: "excluir_carga", id });
+        carregar();
+      } catch (err) {
+        alert("Não foi possível excluir: " + err.message);
+      }
+    }
+    window.excluirCarga = excluirCarga;
 
     // ---------- status de conexão ----------
     function setLive(ok) {
