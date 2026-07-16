@@ -46,7 +46,8 @@
         };
       }
 
-      const tracking = { cargaId: null, watchId: null, ultimoEnvio: 0 };
+      const INTERVALO_HEARTBEAT_MS = 5 * 60 * 1000; // 5 minutos
+      const tracking = { cargaId: null, watchId: null, heartbeatId: null, ultimoEnvio: 0 };
       let idsConhecidos = null; // null = ainda não carregou nada (evita avisar na primeira vez)
 
       async function carregarCargas() {
@@ -146,32 +147,51 @@
         }
       }
 
+      function enviarPosicao(cargaId, latitude, longitude) {
+        tracking.ultimoEnvio = Date.now();
+        return callFunction("minhas-cargas", {
+          acao: "atualizar_posicao",
+          carga_id: cargaId,
+          motorista_id: sessao.id,
+          latitude,
+          longitude
+        }).catch(() => {});
+      }
+
       function iniciarRastreio(cargaId) {
         pararRastreio();
         tracking.cargaId = cargaId;
+
+        // Atualiza quando o GPS detecta movimento (a maioria das vezes)
         tracking.watchId = navigator.geolocation.watchPosition(
           (pos) => {
             const agora = Date.now();
             if (agora - tracking.ultimoEnvio < 15000) return;
-            tracking.ultimoEnvio = agora;
-            callFunction("minhas-cargas", {
-              acao: "atualizar_posicao",
-              carga_id: cargaId,
-              motorista_id: sessao.id,
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude
-            }).catch(() => {});
+            enviarPosicao(cargaId, pos.coords.latitude, pos.coords.longitude);
           },
           () => {},
           { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
         );
+
+        // "Heartbeat": mesmo se o motorista ficar parado (trânsito, parada,
+        // celular sem detectar movimento), força uma atualização a cada
+        // 5 minutos - assim a posição nunca fica travada no ponto de partida.
+        tracking.heartbeatId = setInterval(() => {
+          obterPosicao()
+            .then((pos) => enviarPosicao(cargaId, pos.coords.latitude, pos.coords.longitude))
+            .catch(() => {});
+        }, INTERVALO_HEARTBEAT_MS);
       }
 
       function pararRastreio() {
         if (tracking.watchId != null) {
           navigator.geolocation.clearWatch(tracking.watchId);
         }
+        if (tracking.heartbeatId != null) {
+          clearInterval(tracking.heartbeatId);
+        }
         tracking.watchId = null;
+        tracking.heartbeatId = null;
         tracking.cargaId = null;
       }
 
