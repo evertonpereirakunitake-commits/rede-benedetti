@@ -50,8 +50,10 @@
         <div class="map-frame">
           <div id="mapa-dash"></div>
           <div class="map-legend">
-            <span><span class="dot" style="background:var(--transit)"></span>Caminhão em rota</span>
-            <span><span class="dot" style="background:var(--accent)"></span>Posto</span>
+            <span><span class="dot" style="background:#d4af37"></span>Posto</span>
+            <span><span class="dot" style="background:#dc2626"></span>Gasolina</span>
+            <span><span class="dot" style="background:#22c55e"></span>Etanol</span>
+            <span><span class="dot" style="background:#4b5563"></span>Diesel</span>
           </div>
         </div>
       </div>
@@ -99,6 +101,7 @@
     <div class="foot">Atualização automática a cada 15 segundos · Rede Benedetti</div>
   </div>
 
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/app-common.js"></script>
@@ -126,12 +129,47 @@
       maxZoom: 19
     }).addTo(mapa);
 
-    const iconCaminhao = L.divIcon({
+    // Cor do caminhão no mapa conforme o combustível transportado
+    const CORES_COMBUSTIVEL = {
+      "Gasolina": "#dc2626",
+      "Gasolina Aditivada": "#dc2626",
+      "Etanol": "#22c55e",
+      "Diesel S10": "#4b5563"
+    };
+    function corCombustivel(combustivel) {
+      return CORES_COMBUSTIVEL[combustivel] || "var(--transit)";
+    }
+    function iconCaminhao(combustivel) {
+      return L.divIcon({
+        className: "",
+        html: `<div class="truck-marker" style="background:${corCombustivel(combustivel)}"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+      });
+    }
+
+    // Marcador dourado "B" pros postos com latitude/longitude cadastradas
+    const iconPosto = L.divIcon({
       className: "",
-      html: '<div class="truck-marker" style="background:var(--transit)"></div>',
-      iconSize: [14, 14],
-      iconAnchor: [7, 7]
+      html: '<div style="width:20px;height:20px;border-radius:6px;background:#d4af37;border:2px solid #000;display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:12px;color:#1a1204;box-shadow:0 0 0 2px rgba(212,175,55,.35)">B</div>',
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
     });
+
+    async function carregarPostosNoMapa() {
+      try {
+        const sb = supabase.createClient(BENEDETTI_CONFIG.SUPABASE_URL, BENEDETTI_CONFIG.SUPABASE_ANON_KEY);
+        const { data } = await sb.from("postos_publico").select("nome, latitude, longitude");
+        (data || []).forEach((p) => {
+          if (!p.latitude || !p.longitude) return;
+          L.marker([Number(p.latitude), Number(p.longitude)], { icon: iconPosto })
+            .addTo(mapa)
+            .bindPopup(`<b>${p.nome}</b>`);
+        });
+      } catch {
+        // sem postos com coordenadas ainda - segue sem marcar
+      }
+    }
 
     let marcadores = {};
     let bordasAjustadas = false;
@@ -144,9 +182,12 @@
         ativos.add(c.id);
         const ll = [Number(c.latitude_atual), Number(c.longitude_atual)];
         pontos.push(ll);
-        if (marcadores[c.id]) marcadores[c.id].setLatLng(ll);
-        else marcadores[c.id] = L.marker(ll, { icon: iconCaminhao }).addTo(mapa)
-          .bindPopup(`<b>${c.motorista_nome}</b> → ${c.posto_nome}<br>${c.combustivel} · ${fmt(c.volume_total)} L`);
+        if (marcadores[c.id]) {
+          marcadores[c.id].setLatLng(ll);
+        } else {
+          marcadores[c.id] = L.marker(ll, { icon: iconCaminhao(c.combustivel) }).addTo(mapa)
+            .bindPopup(`<b>${c.motorista_nome}</b> → ${c.posto_nome}<br>${c.combustivel} · ${fmt(c.volume_total)} L`);
+        }
       });
       Object.keys(marcadores).forEach((id) => {
         if (!ativos.has(id)) { mapa.removeLayer(marcadores[id]); delete marcadores[id]; }
@@ -195,6 +236,7 @@
       const sz = 150, r = sz / 2 - 8, cx = sz / 2, cy = sz / 2, strokeW = 18;
       const rr = r - strokeW / 2;
       let acc = 0, arcs = "";
+      const corDoDado = (d, i) => CORES_COMBUSTIVEL[d.label] || PALETA[i % PALETA.length];
       dados.forEach((d, i) => {
         const frac = d.value / total;
         const a0 = acc * 2 * Math.PI - Math.PI / 2; acc += frac;
@@ -203,14 +245,14 @@
         const x1 = cx + rr * Math.cos(a1), y1 = cy + rr * Math.sin(a1);
         const large = frac > 0.5 ? 1 : 0;
         if (frac > 0.999) {
-          arcs += `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none" stroke="${PALETA[i % PALETA.length]}" stroke-width="${strokeW}"></circle>`;
+          arcs += `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none" stroke="${corDoDado(d, i)}" stroke-width="${strokeW}"></circle>`;
         } else if (frac > 0) {
-          arcs += `<path d="M${x0.toFixed(2)},${y0.toFixed(2)} A${rr},${rr} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)}" fill="none" stroke="${PALETA[i % PALETA.length]}" stroke-width="${strokeW}" stroke-linecap="butt"></path>`;
+          arcs += `<path d="M${x0.toFixed(2)},${y0.toFixed(2)} A${rr},${rr} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)}" fill="none" stroke="${corDoDado(d, i)}" stroke-width="${strokeW}" stroke-linecap="butt"></path>`;
         }
       });
       const legenda = dados.map((d, i) => `
         <div class="legend-row">
-          <span class="sw" style="background:${PALETA[i % PALETA.length]}"></span>
+          <span class="sw" style="background:${corDoDado(d, i)}"></span>
           <span class="nm">${d.label}</span>
           <span class="vl">${fmt(d.value)}</span>
           <span class="pc">${Math.round(d.value / total * 100)}%</span>
@@ -360,6 +402,7 @@
     let ultimo = null;
     window.addEventListener("resize", () => { clearTimeout(ultimo); ultimo = setTimeout(carregar, 300); });
 
+    carregarPostosNoMapa();
     carregar();
     setInterval(carregar, 15000);
   </script>
