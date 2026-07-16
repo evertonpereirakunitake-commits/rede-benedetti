@@ -277,7 +277,7 @@ body { min-height: 100vh; }
 .map-frame {
   position: relative;
   flex: 1;
-  min-height: 380px;
+  min-height: 460px;
 }
 #mapa-dash {
   position: absolute;
