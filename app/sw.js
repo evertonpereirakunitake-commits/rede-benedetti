@@ -1,6 +1,6 @@
 // Service worker simples: só dá pro app abrir com o ícone na tela inicial
 // e reaproveitar o shell básico. Dados sempre vêm da rede (nunca cacheados).
-const CACHE = "benedetti-shell-v3";
+const CACHE = "benedetti-shell-v4";
 const SHELL = [
   "index.html",
   "login.html",
@@ -11,12 +11,18 @@ const SHELL = [
   "cadastro.html",
   "cadastro_motorista.html",
   "cadastro_gerente.html",
+  "motorista-app.html",
+  "gerente-app.html",
   "assets/style.css",
   "assets/dashboard.css",
   "assets/config.js",
   "assets/app-common.js",
   "assets/charts.js",
-  "icons/icon.svg"
+  "icons/icon.svg",
+  "icons/icon-motorista-192.png",
+  "icons/icon-motorista-512.png",
+  "icons/icon-gerente-192.png",
+  "icons/icon-gerente-512.png"
 ];
 
 self.addEventListener("install", (event) => {

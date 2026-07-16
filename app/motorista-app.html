@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rede Benedetti Motorista</title>
+<link rel="manifest" href="manifest-motorista.json">
+<link rel="icon" href="icons/icon-motorista-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-motorista-512.png">
+<meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="container" style="display:flex; align-items:center; justify-content:center; min-height:70vh; text-align:center">
+    <div>
+      <img src="icons/icon-motorista-192.png" alt="" style="width:64px;height:64px;border-radius:16px;margin-bottom:16px">
+      <h2>Rede Benedetti Motorista</h2>
+      <p class="sub">Abrindo...</p>
+    </div>
+  </div>
+
+  <script src="assets/config.js"></script>
+  <script src="assets/app-common.js"></script>
+  <script>
+    const sessao = getSession();
+    if (sessao && sessao.tipo === "motorista") {
+      window.location.replace("motorista.html");
+    } else {
+      window.location.replace("login.html?tipo=motorista");
+    }
+  </script>
+</body>
+</html>
