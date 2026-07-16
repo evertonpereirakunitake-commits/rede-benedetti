@@ -4,24 +4,38 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rede Benedetti Motorista</title>
-<link rel="manifest" href="manifest-motorista.json">
+<link id="link-manifest" rel="manifest" href="manifest-motorista.json">
 <link rel="icon" href="icons/icon-motorista-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/icon-motorista-512.png">
 <meta name="theme-color" content="#000000">
 <link rel="stylesheet" href="assets/style.css">
+<script src="assets/config.js"></script>
+<script>
+  // Se veio ?nome=..., troca pro manifesto personalizado com o nome
+  // da pessoa (pra virar um APK com nome/ícone próprio). Sem o parâmetro,
+  // fica o manifesto genérico "Rede Benedetti Motorista".
+  const nomeParam = new URLSearchParams(location.search).get("nome");
+  if (nomeParam) {
+    document.title = nomeParam + " — Rede Benedetti";
+    document.getElementById("link-manifest").href =
+      `${BENEDETTI_CONFIG.SUPABASE_URL}/functions/v1/manifest?papel=motorista&nome=${encodeURIComponent(nomeParam)}&apikey=${BENEDETTI_CONFIG.SUPABASE_ANON_KEY}`;
+  }
+</script>
 </head>
 <body>
   <div class="container" style="display:flex; align-items:center; justify-content:center; min-height:70vh; text-align:center">
     <div>
       <img src="icons/icon-motorista-192.png" alt="" style="width:64px;height:64px;border-radius:16px;margin-bottom:16px">
-      <h2>Rede Benedetti Motorista</h2>
+      <h2 id="titulo-boas-vindas">Rede Benedetti Motorista</h2>
       <p class="sub">Abrindo...</p>
     </div>
   </div>
 
-  <script src="assets/config.js"></script>
   <script src="assets/app-common.js"></script>
   <script>
+    if (nomeParam) {
+      document.getElementById("titulo-boas-vindas").textContent = "Olá, " + nomeParam;
+    }
     const sessao = getSession();
     if (sessao && sessao.tipo === "motorista") {
       window.location.replace("motorista.html");
