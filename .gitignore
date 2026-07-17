@@ -1,2 +1,11 @@
 Thumbs.db
 .DS_Store
+
+# Android nativo - nunca versionar segredos nem artefatos de build
+android-motorista/local.properties
+android-motorista/**/build/
+android-motorista/.gradle/
+android-motorista/*.iml
+android-motorista/.idea/
+*.jks
+keystore.properties
