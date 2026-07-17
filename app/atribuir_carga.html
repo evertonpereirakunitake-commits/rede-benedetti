@@ -38,6 +38,12 @@
         <option>Gasolina Aditivada</option>
       </select>
 
+      <label for="contrato">Origem — usina / contrato</label>
+      <select id="contrato">
+        <option value="">Escolha o combustível primeiro</option>
+      </select>
+      <p class="sub" id="contrato-saldo" style="margin:6px 0 0; font-size:12.5px"></p>
+
       <label for="volume">Volume total (litros)</label>
       <input id="volume" type="number" min="1" step="0.01" required>
 
@@ -58,6 +64,49 @@
     const sb = getSupabaseClient();
     const selPosto = document.getElementById("posto");
     const selMotorista = document.getElementById("motorista");
+    const selCombustivel = document.getElementById("combustivel");
+    const selContrato = document.getElementById("contrato");
+    const saldoEl = document.getElementById("contrato-saldo");
+
+    let contratosDisponiveis = []; // contratos ativos com saldo, carregados uma vez
+
+    function fmtL(n) { return Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 }); }
+
+    async function carregarContratos() {
+      try {
+        const resp = await callFunction("estoque", { tipo: "listar_contratos" });
+        contratosDisponiveis = (resp.contratos || []).filter((c) => c.saldo > 0);
+      } catch {
+        contratosDisponiveis = []; // sem a function estoque publicada ainda - campo fica opcional
+      }
+      atualizarOpcoesContrato();
+    }
+
+    function atualizarOpcoesContrato() {
+      const comb = selCombustivel.value;
+      saldoEl.textContent = "";
+      if (!comb) {
+        selContrato.innerHTML = '<option value="">Escolha o combustível primeiro</option>';
+        return;
+      }
+      const doCombustivel = contratosDisponiveis.filter((c) => c.combustivel === comb);
+      if (doCombustivel.length === 0) {
+        selContrato.innerHTML = '<option value="">Sem contrato (nenhum em aberto pra este combustível)</option>';
+        return;
+      }
+      selContrato.innerHTML = '<option value="">Sem contrato / avulso</option>' +
+        doCombustivel.map((c) =>
+          `<option value="${c.id}">${c.usina_nome}${c.numero_contrato ? " · " + c.numero_contrato : ""} — saldo ${fmtL(c.saldo)} L</option>`
+        ).join("");
+    }
+
+    selCombustivel.addEventListener("change", atualizarOpcoesContrato);
+    selContrato.addEventListener("change", () => {
+      const c = contratosDisponiveis.find((x) => x.id === selContrato.value);
+      saldoEl.textContent = c
+        ? `Saldo disponível neste contrato: ${fmtL(c.saldo)} L (de ${fmtL(c.volume_contratado)} L contratados)`
+        : "";
+    });
 
     async function carregarPostos() {
       const { data, error } = await sb.from("postos_publico").select("id, nome").order("nome");
@@ -120,15 +169,17 @@
           posto_id: postoId,
           posto_nome: posto,
           motorista_id: selMotorista.value,
-          combustivel: document.getElementById("combustivel").value,
+          combustivel: selCombustivel.value,
           volume_total: Number(document.getElementById("volume").value),
-          numero_nota_fiscal: document.getElementById("nota").value || null
+          numero_nota_fiscal: document.getElementById("nota").value || null,
+          contrato_id: selContrato.value || null
         });
 
         msgEl.innerHTML = '<div class="success-msg">Carga atribuída com sucesso!</div>';
-        document.getElementById("combustivel").value = "";
+        selCombustivel.value = "";
         document.getElementById("volume").value = "";
         document.getElementById("nota").value = "";
+        carregarContratos(); // recarrega saldos (a carga nova abateu do contrato)
         carregarPendentes(postoId);
       } catch (err) {
         msgEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
@@ -140,6 +191,7 @@
 
     carregarPostos();
     carregarMotoristas();
+    carregarContratos();
   </script>
 </body>
 </html>

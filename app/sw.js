@@ -1,6 +1,6 @@
 // Service worker simples: só dá pro app abrir com o ícone na tela inicial
 // e reaproveitar o shell básico. Dados sempre vêm da rede (nunca cacheados).
-const CACHE = "benedetti-shell-v5";
+const CACHE = "benedetti-shell-v6";
 const SHELL = [
   "index.html",
   "login.html",
@@ -11,6 +11,7 @@ const SHELL = [
   "cadastro.html",
   "cadastro_motorista.html",
   "cadastro_gerente.html",
+  "estoque.html",
   "motorista-app.html",
   "gerente-app.html",
   "assets/style.css",
