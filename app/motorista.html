@@ -158,11 +158,25 @@
         }).catch(() => {});
       }
 
+      // Se o app estiver rodando dentro do nosso app nativo Android (não
+      // no navegador comum), ele expõe "AndroidTracking" - nesse caso o
+      // rastreio roda de verdade em segundo plano (com o celular travado
+      // ou em outro app), feito por um serviço nativo, não pelo navegador.
+      function temRastreioNativo() {
+        return typeof window.AndroidTracking !== "undefined";
+      }
+
       function iniciarRastreio(cargaId) {
         pararRastreio();
         tracking.cargaId = cargaId;
 
-        // Atualiza quando o GPS detecta movimento (a maioria das vezes)
+        if (temRastreioNativo()) {
+          window.AndroidTracking.iniciarRastreio(cargaId, sessao.id);
+          return;
+        }
+
+        // Modo navegador (sem app nativo) - atualiza quando o GPS detecta
+        // movimento (a maioria das vezes)
         tracking.watchId = navigator.geolocation.watchPosition(
           (pos) => {
             const agora = Date.now();
@@ -176,6 +190,8 @@
         // "Heartbeat": mesmo se o motorista ficar parado (trânsito, parada,
         // celular sem detectar movimento), força uma atualização a cada
         // 5 minutos - assim a posição nunca fica travada no ponto de partida.
+        // (No app nativo isso não é necessário - o serviço em segundo
+        // plano já cuida disso de forma mais confiável.)
         tracking.heartbeatId = setInterval(() => {
           obterPosicao()
             .then((pos) => enviarPosicao(cargaId, pos.coords.latitude, pos.coords.longitude))
@@ -184,6 +200,9 @@
       }
 
       function pararRastreio() {
+        if (temRastreioNativo()) {
+          window.AndroidTracking.pararRastreio();
+        }
         if (tracking.watchId != null) {
           navigator.geolocation.clearWatch(tracking.watchId);
         }
