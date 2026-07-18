@@ -108,26 +108,48 @@ function __destravarAudio() {
 document.addEventListener("click", __destravarAudio);
 document.addEventListener("touchstart", __destravarAudio);
 
-// Toca um bipe curto de duas notas (tipo "novo aviso"). Chame sempre que
-// uma carga nova chegar pro motorista, ou o status mudar pro gerente.
+// Toca um sinal sonoro de "novo aviso": um acorde ascendente de 4 notas
+// (mais cheio e chamativo que um bipe simples) + um leve "thump" grave no
+// início pra ter presença mesmo no alto-falante pequeno do celular. Chame
+// sempre que uma carga nova chegar pro motorista, ou o status mudar pro
+// gerente.
 function tocarAlerta() {
   try {
     if (!__audioCtx) return;
     const ctx = __audioCtx;
     const t0 = ctx.currentTime;
-    [660, 880].forEach((freq, i) => {
+
+    // thump grave curto - dá "peso" ao início do sinal
+    const thump = ctx.createOscillator();
+    const thumpGain = ctx.createGain();
+    thump.type = "sine";
+    thump.frequency.setValueAtTime(180, t0);
+    thump.frequency.exponentialRampToValueAtTime(70, t0 + 0.12);
+    thumpGain.gain.setValueAtTime(0.0001, t0);
+    thumpGain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.012);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.15);
+    thump.connect(thumpGain);
+    thumpGain.connect(ctx.destination);
+    thump.start(t0);
+    thump.stop(t0 + 0.16);
+
+    // acorde ascendente (Mi-Sol#-Si-Mi oitava acima) - som "positivo",
+    // tipo confirmação de pedido novo
+    const notas = [659.25, 830.61, 987.77, 1318.51];
+    notas.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
+      osc.type = "triangle";
       osc.frequency.value = freq;
-      const inicio = t0 + i * 0.16;
+      const inicio = t0 + 0.05 + i * 0.11;
+      const pico = i === notas.length - 1 ? 0.42 : 0.34;
       gain.gain.setValueAtTime(0.0001, inicio);
-      gain.gain.exponentialRampToValueAtTime(0.28, inicio + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.28);
+      gain.gain.exponentialRampToValueAtTime(pico, inicio + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.42);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(inicio);
-      osc.stop(inicio + 0.3);
+      osc.stop(inicio + 0.45);
     });
   } catch {
     // navegador sem suporte a Web Audio - ignora silenciosamente
