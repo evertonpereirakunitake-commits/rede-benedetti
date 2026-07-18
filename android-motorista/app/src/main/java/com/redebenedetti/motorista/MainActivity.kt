@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
@@ -18,6 +19,18 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val URL_INICIAL = "https://evertonpereirakunitake-commits.github.io/rede-benedetti/app/motorista-app.html"
+
+        // Este app é EXCLUSIVO do motorista - nenhuma outra tela do site
+        // (dashboard, cadastros, portal, painel do gerente...) pode abrir
+        // aqui dentro. Qualquer link que fuja disso (inclusive "Sair") volta
+        // pro início do app, nunca pro portal geral.
+        val PAGINAS_PERMITIDAS = listOf("motorista-app.html", "motorista.html", "login.html")
+
+        fun urlPermitida(url: String): Boolean {
+            if (PAGINAS_PERMITIDAS.none { url.contains(it) }) return false
+            if (url.contains("login.html") && !url.contains("tipo=motorista")) return false
+            return true
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,7 +42,14 @@ class MainActivity : AppCompatActivity() {
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val url = request.url.toString()
+                if (urlPermitida(url)) return false
+                view.loadUrl(URL_INICIAL)
+                return true
+            }
+        }
         webView.addJavascriptInterface(PonteAndroid(this), "AndroidTracking")
 
         pedirPermissoesBasicas()

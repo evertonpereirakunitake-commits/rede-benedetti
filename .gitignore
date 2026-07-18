@@ -7,5 +7,10 @@ android-motorista/**/build/
 android-motorista/.gradle/
 android-motorista/*.iml
 android-motorista/.idea/
+android-gerente/local.properties
+android-gerente/**/build/
+android-gerente/.gradle/
+android-gerente/*.iml
+android-gerente/.idea/
 *.jks
 keystore.properties
