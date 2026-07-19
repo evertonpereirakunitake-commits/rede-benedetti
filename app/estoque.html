@@ -16,6 +16,10 @@
   .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
   @media (max-width: 560px) { .grid-form { grid-template-columns: 1fr; } }
 
+  .busca-cnpj { display: flex; gap: 8px; align-items: stretch; }
+  .busca-cnpj input { flex: 1; }
+  .busca-cnpj button { width: auto; margin: 0; padding: 0 20px; white-space: nowrap; }
+
   .lista-item {
     font-size: 13.5px; color: var(--text-dim);
     padding: 12px 2px; border-bottom: 1px solid var(--border);
@@ -139,8 +143,15 @@
 
     <!-- ============ USINAS ============ -->
     <div class="secao">
-      <label>Usinas cadastradas</label>
+      <label>Usinas / distribuidoras cadastradas</label>
       <form id="form-usina">
+        <label for="us-cnpj">CNPJ (busca automática)</label>
+        <div class="busca-cnpj">
+          <input id="us-cnpj" type="text" inputmode="numeric" placeholder="00.000.000/0000-00">
+          <button type="button" id="btn-buscar-cnpj" class="secondary">Buscar</button>
+        </div>
+        <p class="sub" id="cnpj-status" style="margin:6px 0 0; font-size:12px">Digite o CNPJ e clique em Buscar pra preencher nome e endereço sozinho. Ou preencha à mão abaixo.</p>
+
         <div class="grid-form">
           <div>
             <label for="us-nome">Nome da usina</label>
@@ -210,6 +221,32 @@
     }
     window.excluirUsina = excluirUsina;
 
+    // busca por CNPJ (preenche nome/cidade/endereço automaticamente)
+    const btnBuscar = document.getElementById("btn-buscar-cnpj");
+    const cnpjStatus = document.getElementById("cnpj-status");
+    btnBuscar.addEventListener("click", async () => {
+      const cnpj = document.getElementById("us-cnpj").value.replace(/\D/g, "");
+      if (cnpj.length !== 14) {
+        cnpjStatus.innerHTML = '<span style="color:var(--red)">CNPJ precisa ter 14 dígitos.</span>';
+        return;
+      }
+      btnBuscar.disabled = true;
+      btnBuscar.textContent = "Buscando...";
+      cnpjStatus.textContent = "Consultando a Receita...";
+      try {
+        const resp = await callFunction("estoque", { tipo: "buscar_cnpj", cnpj });
+        if (resp.nome) document.getElementById("us-nome").value = resp.nome;
+        if (resp.cidade) document.getElementById("us-cidade").value = resp.cidade;
+        if (resp.endereco) document.getElementById("us-endereco").value = resp.endereco;
+        cnpjStatus.innerHTML = '<span style="color:var(--green)">Dados preenchidos! Confira e ajuste se precisar.</span>';
+      } catch (err) {
+        cnpjStatus.innerHTML = `<span style="color:var(--red)">${esc(err.message)}</span>`;
+      } finally {
+        btnBuscar.disabled = false;
+        btnBuscar.textContent = "Buscar";
+      }
+    });
+
     document.getElementById("form-usina").addEventListener("submit", async (e) => {
       e.preventDefault();
       const msgEl = e.target.querySelector(".msg");
@@ -217,11 +254,13 @@
         await callFunction("estoque", {
           tipo: "cadastrar_usina",
           nome: document.getElementById("us-nome").value.trim(),
+          cnpj: document.getElementById("us-cnpj").value.replace(/\D/g, "") || null,
           cidade: document.getElementById("us-cidade").value.trim() || null,
           endereco: document.getElementById("us-endereco").value.trim()
         });
         mostrarMsg(msgEl, "Usina cadastrada!", true);
         e.target.reset();
+        cnpjStatus.textContent = "Digite o CNPJ e clique em Buscar pra preencher nome e endereço sozinho. Ou preencha à mão abaixo.";
         carregarUsinas();
       } catch (err) {
         mostrarMsg(msgEl, err.message, false);

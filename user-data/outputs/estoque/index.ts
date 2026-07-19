@@ -49,26 +49,59 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { tipo } = body;
 
+    if (tipo === 'buscar_cnpj') {
+      // Consulta a base pública da Receita (BrasilAPI) pra preencher
+      // nome/endereço/cidade da usina automaticamente. Feito no servidor
+      // pra não esbarrar em CORS no navegador.
+      const cnpj = String(body.cnpj || '').replace(/\D/g, '');
+      if (cnpj.length !== 14) return json({ error: 'CNPJ precisa ter 14 dígitos' }, 400);
+      try {
+        const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+        if (resp.status === 404) return json({ error: 'CNPJ não encontrado na base da Receita' }, 404);
+        if (!resp.ok) return json({ error: 'Não foi possível consultar o CNPJ agora. Preencha à mão.' }, 502);
+        const d = await resp.json();
+        const partes = [
+          [d.logradouro, d.numero].filter(Boolean).join(', '),
+          d.bairro,
+          [d.municipio, d.uf].filter(Boolean).join('/')
+        ].filter((p) => p && String(p).trim());
+        const endereco = partes.join(' - ') + (d.cep ? ` (CEP ${d.cep})` : '');
+        return json({
+          ok: true,
+          nome: d.nome_fantasia || d.razao_social || '',
+          cidade: d.municipio || '',
+          endereco
+        });
+      } catch {
+        return json({ error: 'Não foi possível consultar o CNPJ agora. Preencha à mão.' }, 502);
+      }
+    }
+
     if (tipo === 'listar_usinas') {
-      const { data, error } = await sb.from('usinas').select('id, nome, cidade, endereco, latitude, longitude').order('nome');
+      const { data, error } = await sb.from('usinas').select('id, nome, cnpj, cidade, endereco, latitude, longitude').order('nome');
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true, usinas: data });
     }
 
     if (tipo === 'cadastrar_usina') {
-      const { nome, cidade, endereco, latitude, longitude } = body;
+      const { nome, cnpj, cidade, endereco, latitude, longitude } = body;
       if (!nome || !String(nome).trim()) return json({ error: 'Nome da usina é obrigatório' }, 400);
       if (!endereco || !String(endereco).trim()) return json({ error: 'Endereço de carregamento é obrigatório — é o que o motorista vai ver pra saber onde buscar a carga' }, 400);
+      const cnpjLimpo = cnpj ? String(cnpj).replace(/\D/g, '') : null;
       const { data, error } = await sb.from('usinas')
         .insert({
           nome: String(nome).trim(),
+          cnpj: cnpjLimpo || null,
           cidade: cidade ? String(cidade).trim() : null,
           endereco: String(endereco).trim(),
           latitude: latitude || null,
           longitude: longitude || null
         })
         .select('id').single();
-      if (error) return json({ error: error.message }, 400);
+      if (error) {
+        const msg = error.message.includes('unique') ? 'Já existe uma usina com esse CNPJ' : error.message;
+        return json({ error: msg }, 400);
+      }
       return json({ ok: true, id: data.id });
     }
 
