@@ -29,11 +29,15 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const {
       posto_id, posto_nome, motorista_id,
-      combustivel, volume_total, numero_nota_fiscal, contrato_id
+      combustivel, volume_total, numero_nota_fiscal, contrato_id,
+      local_carregamento
     } = body;
 
     if (!posto_id || !motorista_id || !combustivel || !volume_total) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers: corsHeaders });
+    }
+    if (!local_carregamento || !String(local_carregamento).trim()) {
+      return new Response(JSON.stringify({ error: 'Informe onde o motorista vai carregar (endereço da usina ou local de retirada)' }), { status: 400, headers: corsHeaders });
     }
 
     const volume = Number(volume_total);
@@ -98,6 +102,7 @@ Deno.serve(async (req) => {
       volume_total: volume,
       numero_nota_fiscal: numero_nota_fiscal || null,
       contrato_id: contrato_id || null,
+      local_carregamento: String(local_carregamento).trim(),
       status: 'aguardando_carregamento'
     }).select().single();
 

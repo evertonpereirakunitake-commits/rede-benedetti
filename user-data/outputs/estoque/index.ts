@@ -50,16 +50,23 @@ Deno.serve(async (req) => {
     const { tipo } = body;
 
     if (tipo === 'listar_usinas') {
-      const { data, error } = await sb.from('usinas').select('id, nome, cidade').order('nome');
+      const { data, error } = await sb.from('usinas').select('id, nome, cidade, endereco, latitude, longitude').order('nome');
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true, usinas: data });
     }
 
     if (tipo === 'cadastrar_usina') {
-      const { nome, cidade } = body;
+      const { nome, cidade, endereco, latitude, longitude } = body;
       if (!nome || !String(nome).trim()) return json({ error: 'Nome da usina é obrigatório' }, 400);
+      if (!endereco || !String(endereco).trim()) return json({ error: 'Endereço de carregamento é obrigatório — é o que o motorista vai ver pra saber onde buscar a carga' }, 400);
       const { data, error } = await sb.from('usinas')
-        .insert({ nome: String(nome).trim(), cidade: cidade ? String(cidade).trim() : null })
+        .insert({
+          nome: String(nome).trim(),
+          cidade: cidade ? String(cidade).trim() : null,
+          endereco: String(endereco).trim(),
+          latitude: latitude || null,
+          longitude: longitude || null
+        })
         .select('id').single();
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, id: data.id });
@@ -99,7 +106,7 @@ Deno.serve(async (req) => {
       // incluir_encerrados: true traz também os inativos (pra tela de histórico)
       const { incluir_encerrados } = body;
       let query = sb.from('contratos_combustivel')
-        .select('id, combustivel, volume_contratado, numero_contrato, ativo, criado_em, usinas(id, nome)')
+        .select('id, combustivel, volume_contratado, numero_contrato, ativo, criado_em, usinas(id, nome, endereco, latitude, longitude)')
         .order('criado_em', { ascending: false });
       if (!incluir_encerrados) query = query.eq('ativo', true);
       const { data, error } = await query;
@@ -112,6 +119,9 @@ Deno.serve(async (req) => {
           id: c.id,
           usina_id: c.usinas?.id || null,
           usina_nome: c.usinas?.nome || '(usina removida)',
+          usina_endereco: c.usinas?.endereco || null,
+          usina_latitude: c.usinas?.latitude || null,
+          usina_longitude: c.usinas?.longitude || null,
           combustivel: c.combustivel,
           numero_contrato: c.numero_contrato,
           volume_contratado: Number(c.volume_contratado),

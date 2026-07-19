@@ -44,6 +44,10 @@
       </select>
       <p class="sub" id="contrato-saldo" style="margin:6px 0 0; font-size:12.5px"></p>
 
+      <label for="local-carregamento">Local de carregamento — onde o motorista vai buscar</label>
+      <input id="local-carregamento" type="text" placeholder="Endereço da usina ou local de retirada" required>
+      <p class="sub" style="margin:6px 0 0; font-size:12px">Preenche sozinho quando você escolhe um contrato acima. Pra carga avulsa, digite o endereço.</p>
+
       <label for="volume">Volume total (litros)</label>
       <input id="volume" type="number" min="1" step="0.01" required>
 
@@ -100,12 +104,24 @@
         ).join("");
     }
 
+    const localCarregamentoEl = document.getElementById("local-carregamento");
+    let localEditadoManualmente = false;
+    localCarregamentoEl.addEventListener("input", () => { localEditadoManualmente = true; });
+
     selCombustivel.addEventListener("change", atualizarOpcoesContrato);
     selContrato.addEventListener("change", () => {
       const c = contratosDisponiveis.find((x) => x.id === selContrato.value);
       saldoEl.textContent = c
         ? `Saldo disponível neste contrato: ${fmtL(c.saldo)} L (de ${fmtL(c.volume_contratado)} L contratados)`
         : "";
+      // auto-preenche o local de carregamento com o endereço da usina do
+      // contrato escolhido, a menos que o usuário já tenha digitado algo à mão
+      if (c && c.usina_endereco && !localEditadoManualmente) {
+        localCarregamentoEl.value = `${c.usina_nome} — ${c.usina_endereco}`;
+      } else if (!c) {
+        localEditadoManualmente = false;
+        localCarregamentoEl.value = "";
+      }
     });
 
     async function carregarPostos() {
@@ -172,13 +188,16 @@
           combustivel: selCombustivel.value,
           volume_total: Number(document.getElementById("volume").value),
           numero_nota_fiscal: document.getElementById("nota").value || null,
-          contrato_id: selContrato.value || null
+          contrato_id: selContrato.value || null,
+          local_carregamento: localCarregamentoEl.value.trim()
         });
 
         msgEl.innerHTML = '<div class="success-msg">Carga atribuída com sucesso!</div>';
         selCombustivel.value = "";
         document.getElementById("volume").value = "";
         document.getElementById("nota").value = "";
+        localCarregamentoEl.value = "";
+        localEditadoManualmente = false;
         carregarContratos(); // recarrega saldos (a carga nova abateu do contrato)
         carregarPendentes(postoId);
       } catch (err) {

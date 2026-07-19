@@ -151,6 +151,8 @@
             <input id="us-cidade" type="text">
           </div>
         </div>
+        <label for="us-endereco">Endereço de carregamento</label>
+        <input id="us-endereco" type="text" placeholder="Rua, número, cidade — onde o motorista vai buscar" required>
         <button type="submit" class="secondary">Cadastrar usina</button>
         <div class="msg"></div>
       </form>
@@ -183,7 +185,7 @@
               <div class="lista-item">
                 <div>
                   <div class="nome">${esc(u.nome)}</div>
-                  ${u.cidade ? `<div class="det">${esc(u.cidade)}</div>` : ""}
+                  <div class="det">${esc(u.endereco || u.cidade || "sem endereço")}</div>
                 </div>
                 <button type="button" class="btn-mini" onclick="excluirUsina('${u.id}')">Excluir</button>
               </div>`).join("")
@@ -215,7 +217,8 @@
         await callFunction("estoque", {
           tipo: "cadastrar_usina",
           nome: document.getElementById("us-nome").value.trim(),
-          cidade: document.getElementById("us-cidade").value.trim() || null
+          cidade: document.getElementById("us-cidade").value.trim() || null,
+          endereco: document.getElementById("us-endereco").value.trim()
         });
         mostrarMsg(msgEl, "Usina cadastrada!", true);
         e.target.reset();
