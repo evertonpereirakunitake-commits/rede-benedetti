@@ -184,7 +184,7 @@ body { min-height: 100vh; }
 /* ---------- KPI rail ---------- */
 .kpi-rail {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 14px;
 }
 
@@ -228,6 +228,7 @@ body { min-height: 100vh; }
 .kpi.tone-accent  { --tone: var(--accent); }
 .kpi.tone-wait    { --tone: var(--wait); }
 .kpi.tone-transit { --tone: var(--transit); }
+.kpi.tone-conferencia { --tone: var(--accent); }
 .kpi.tone-ok      { --tone: var(--ok); }
 
 /* ---------- Panels + grid ---------- */
@@ -423,6 +424,7 @@ table.manifest tbody td:first-child::before {
 }
 tr.tone-wait    { --row-tone: var(--wait); }
 tr.tone-transit { --row-tone: var(--transit); }
+tr.tone-conferencia { --row-tone: var(--accent); }
 
 .status-chip {
   display: inline-flex;
@@ -439,6 +441,8 @@ tr.tone-transit { --row-tone: var(--transit); }
 .status-chip.wait .d { background: var(--wait); }
 .status-chip.transit { background: var(--transit-soft); color: var(--transit); }
 .status-chip.transit .d { background: var(--transit); }
+.status-chip.conferencia { background: var(--accent-soft); color: var(--accent); }
+.status-chip.conferencia .d { background: var(--accent); }
 
 .empty {
   text-align: center;

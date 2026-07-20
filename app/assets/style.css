@@ -187,6 +187,7 @@ input:focus, select:focus {
 }
 .status-aguardando { background: var(--amber-soft); color: var(--amber); }
 .status-transito { background: var(--blue-soft); color: var(--blue); }
+.status-conferencia { background: var(--primary-soft); color: var(--primary); }
 .status-entregue { background: var(--green-soft); color: var(--green); }
 .status-cancelada { background: var(--red-soft); color: var(--red); }
 
@@ -225,29 +226,43 @@ input:focus, select:focus {
 .role-picker a.btn strong { font-size: 16px; font-weight: 600; }
 .role-picker a.btn span { font-size: 13px; color: var(--muted); font-weight: 400; }
 
-/* ---------- Map (painel gerente) ---------- */
-#mapa {
-  width: 100%;
-  height: 280px;
-  border-radius: var(--radius);
-  margin-bottom: 16px;
-  border: 1px solid var(--border);
-  background: var(--bg-2, #08090c);
+/* ---------- KM/ETA em destaque (painel gerente) ---------- */
+.km-display {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--blue-soft);
+  border: 1px solid color-mix(in srgb, var(--blue) 35%, transparent);
+  text-align: center;
 }
-.leaflet-container { font-family: var(--font-ui); background: #08090c; }
-.leaflet-popup-content-wrapper {
-  background: var(--elevated);
-  color: var(--text);
-  border-radius: 10px;
-  border: 1px solid var(--border-strong);
+.km-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--blue);
+  line-height: 1;
+  letter-spacing: -.02em;
 }
-.leaflet-popup-tip { background: var(--elevated); }
-.leaflet-control-attribution {
-  background: color-mix(in srgb, var(--bg-card) 82%, transparent) !important;
-  color: var(--muted) !important;
+.km-num .km-unit { font-size: 16px; font-weight: 600; margin-left: 4px; color: var(--text-dim); }
+.km-eta { font-size: 13.5px; color: var(--text-dim); margin-top: 6px; }
+
+/* ---------- Confirmação de recebimento (painel gerente) ---------- */
+.confere-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
 }
-.leaflet-control-attribution a { color: var(--text-dim) !important; }
-.leaflet-bar a { background: var(--bg-card) !important; color: var(--text) !important; border-color: var(--border) !important; }
+.confere-aviso { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 4px; }
+.confere-box label { margin: 12px 0 6px; }
+.confere-box button {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+.confere-msg { margin-top: 8px; }
+.confere-msg.error-msg, .confere-msg.success-msg { margin-top: 10px; }
 
 /* ---------- Misc ---------- */
 .tag-btn {

@@ -60,6 +60,7 @@ function getSupabaseClient() {
 const STATUS_LABEL = {
   aguardando_carregamento: "Aguardando carregamento",
   em_transito: "Em trânsito",
+  aguardando_conferencia: "Aguardando conferência",
   entregue: "Entregue",
   cancelada: "Cancelada"
 };
@@ -67,6 +68,7 @@ const STATUS_LABEL = {
 const STATUS_CLASS = {
   aguardando_carregamento: "status-aguardando",
   em_transito: "status-transito",
+  aguardando_conferencia: "status-conferencia",
   entregue: "status-entregue",
   cancelada: "status-cancelada"
 };

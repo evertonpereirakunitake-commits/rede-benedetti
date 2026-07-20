@@ -7,7 +7,6 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#0f172a">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -24,14 +23,11 @@
 
   <div class="container">
     <button id="btn-notif" class="secondary" style="display:none">Ativar notificações</button>
-    <div id="mapa"></div>
     <div id="lista">
       <div class="empty-state">Carregando...</div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="assets/config.js"></script>
   <script src="assets/app-common.js"></script>
   <script>
@@ -50,46 +46,10 @@
         };
       }
 
-      const mapa = L.map("mapa").setView([-22.9, -47.3], 12);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: "&copy; OpenStreetMap &copy; CARTO",
-        subdomains: "abcd", maxZoom: 19
-      }).addTo(mapa);
-
-      const iconPosto = L.divIcon({
-        className: "",
-        html: '<div style="background:#f97316;width:16px;height:16px;border-radius:50%;border:3px solid #fff"></div>',
-        iconSize: [16, 16]
-      });
-      const iconCaminhao = L.divIcon({
-        className: "",
-        html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid #fff"></div>',
-        iconSize: [16, 16]
-      });
-
-      const marcadoresCarga = {};
+      const LIMITES_KM = [30, 20, 10, 5];
+      const alarmesDisparados = {};
       let statusAnterior = {};
-      let mapaCentralizado = false;
-
-      async function carregarPosto() {
-        try {
-          const sb = getSupabaseClient();
-          const { data: posto } = await sb
-            .from("postos_publico")
-            .select("nome, latitude, longitude")
-            .eq("id", sessao.posto_id)
-            .single();
-
-          if (posto && posto.latitude && posto.longitude) {
-            const latlng = [Number(posto.latitude), Number(posto.longitude)];
-            mapa.setView(latlng, 12);
-            mapaCentralizado = true;
-            L.marker(latlng, { icon: iconPosto }).addTo(mapa).bindPopup(posto.nome || "Meu posto");
-          }
-        } catch (err) {
-          // Sem view pública de postos ainda cadastrada - mapa segue com view padrão
-        }
-      }
+      let primeiraChecagem = true;
 
       async function carregarCargas() {
         const listaEl = document.getElementById("lista");
@@ -100,11 +60,15 @@
           });
           const cargas = resp.cargas || [];
           renderizarLista(cargas, listaEl);
-          atualizarMapa(cargas);
           checarNotificacoes(cargas);
+          checarProximidade(cargas);
         } catch (err) {
           listaEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
         }
+      }
+
+      function telefoneLimpo(tel) {
+        return (tel || "").replace(/[^\d+]/g, "");
       }
 
       function renderizarLista(cargas, listaEl) {
@@ -117,44 +81,34 @@
             <span class="badge ${statusClass(c.status)}">${statusLabel(c.status)}</span>
             <h3>${c.motorista_nome}</h3>
             <div class="row"><span>Combustível</span><span>${c.combustivel}</span></div>
-            <div class="row"><span>Volume</span><span>${c.volume_total} L</span></div>
+            <div class="row"><span>Volume enviado</span><span>${c.volume_total} L</span></div>
             <div class="row"><span>Placa</span><span>${c.motorista_placa || "-"}</span></div>
-            ${c.status === "em_transito" && c.distancia_restante_km != null
-              ? `<div class="row"><span>Distância</span><span>${Number(c.distancia_restante_km).toFixed(1)} km</span></div>
-                 <div class="row"><span>ETA</span><span>${c.tempo_estimado_min ?? "-"} min</span></div>`
-              : ""}
+
+            ${c.status === "em_transito" ? `
+              <div class="km-display">
+                ${c.distancia_restante_km != null
+                  ? `<div class="km-num">${Number(c.distancia_restante_km).toFixed(1)}<span class="km-unit">km</span></div>
+                     <div class="km-eta">chegada em ~${c.tempo_estimado_min ?? "-"} min</div>`
+                  : `<div class="km-eta">Aguardando localização do motorista...</div>`}
+              </div>
+            ` : ""}
+
+            ${c.status === "aguardando_conferencia" ? `
+              <div class="confere-box" data-carga="${c.id}">
+                <div class="confere-aviso">O motorista confirmou a entrega. Confira o volume recebido para fechar esta carga.</div>
+                <label>Volume recebido (litros)</label>
+                <input type="number" step="0.01" min="0" inputmode="decimal" class="input-recebido" placeholder="Ex: ${c.volume_total}">
+                <button class="confirmar-recebimento">Confirmar recebimento</button>
+                <div class="confere-msg"></div>
+              </div>
+            ` : ""}
+
+            ${c.motorista_telefone ? `
+              <a class="btn secondary" href="tel:${telefoneLimpo(c.motorista_telefone)}">Ligar para o motorista · ${c.motorista_telefone}</a>
+            ` : ""}
           </div>
         `).join("");
       }
-
-      function atualizarMapa(cargas) {
-        const idsAtivos = new Set();
-
-        cargas.forEach((c) => {
-          if (c.status !== "em_transito" || !c.latitude_atual || !c.longitude_atual) return;
-          idsAtivos.add(c.id);
-          const latlng = [Number(c.latitude_atual), Number(c.longitude_atual)];
-
-          if (marcadoresCarga[c.id]) {
-            marcadoresCarga[c.id].setLatLng(latlng);
-          } else {
-            marcadoresCarga[c.id] = L.marker(latlng, { icon: iconCaminhao })
-              .addTo(mapa)
-              .bindPopup(`${c.motorista_nome} - ${c.combustivel}`);
-          }
-
-          if (!mapaCentralizado) mapa.setView(latlng, 12);
-        });
-
-        Object.keys(marcadoresCarga).forEach((id) => {
-          if (!idsAtivos.has(id)) {
-            mapa.removeLayer(marcadoresCarga[id]);
-            delete marcadoresCarga[id];
-          }
-        });
-      }
-
-      let primeiraChecagem = true;
 
       function checarNotificacoes(cargas) {
         cargas.forEach((c) => {
@@ -166,6 +120,9 @@
             } else if (anterior === "aguardando_carregamento" && c.status === "em_transito") {
               tocarAlerta();
               notificar("Carga a caminho", `${c.motorista_nome} saiu com ${c.combustivel}`);
+            } else if (anterior !== "aguardando_conferencia" && c.status === "aguardando_conferencia") {
+              tocarAlerta();
+              notificar("Motorista chegou", `${c.motorista_nome} confirmou a entrega - confira o volume recebido`);
             }
           }
           statusAnterior[c.id] = c.status;
@@ -173,7 +130,59 @@
         primeiraChecagem = false;
       }
 
-      carregarPosto().then(carregarCargas);
+      function checarProximidade(cargas) {
+        cargas.forEach((c) => {
+          if (c.status !== "em_transito" || c.distancia_restante_km == null) return;
+          const dist = Number(c.distancia_restante_km);
+          if (!alarmesDisparados[c.id]) alarmesDisparados[c.id] = new Set();
+          const jaAvisados = alarmesDisparados[c.id];
+          const cruzados = LIMITES_KM.filter((limite) => dist <= limite && !jaAvisados.has(limite));
+          if (cruzados.length === 0) return;
+          const menorLimite = Math.min(...cruzados);
+          cruzados.forEach((limite) => jaAvisados.add(limite));
+          tocarAlerta();
+          notificar(`${c.motorista_nome} está a ${menorLimite} km`, `${c.combustivel} - chegando ao posto`);
+        });
+      }
+
+      document.getElementById("lista").addEventListener("click", async (e) => {
+        if (!e.target.classList.contains("confirmar-recebimento")) return;
+        const box = e.target.closest(".confere-box");
+        const cargaId = box.dataset.carga;
+        const input = box.querySelector(".input-recebido");
+        const msg = box.querySelector(".confere-msg");
+        const volume = Number(input.value);
+
+        if (!input.value || !(volume > 0)) {
+          msg.textContent = "Informe o volume recebido (maior que zero).";
+          msg.className = "confere-msg error-msg";
+          return;
+        }
+
+        e.target.disabled = true;
+        e.target.textContent = "Confirmando...";
+        msg.textContent = "";
+        msg.className = "confere-msg";
+
+        try {
+          await callFunction("minhas-cargas", {
+            acao: "confirmar_recebimento",
+            carga_id: cargaId,
+            posto_id: sessao.posto_id,
+            volume_recebido: volume
+          });
+          msg.textContent = "Recebimento confirmado!";
+          msg.className = "confere-msg success-msg";
+          setTimeout(carregarCargas, 900);
+        } catch (err) {
+          msg.textContent = err.message;
+          msg.className = "confere-msg error-msg";
+          e.target.disabled = false;
+          e.target.textContent = "Confirmar recebimento";
+        }
+      });
+
+      carregarCargas();
       setInterval(carregarCargas, 10000);
     }
   </script>

@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       await Promise.all([
         sb.from('cargas_transporte')
           .select('*')
-          .in('status', ['aguardando_carregamento', 'em_transito'])
+          .in('status', ['aguardando_carregamento', 'em_transito', 'aguardando_conferencia'])
           .order('atribuido_em', { ascending: false }),
         sb.from('cargas_transporte')
           .select('volume_total, combustivel')
@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
       ativas: listaAtivas.length,
       aguardando: listaAtivas.filter((c) => c.status === 'aguardando_carregamento').length,
       em_transito: listaAtivas.filter((c) => c.status === 'em_transito').length,
+      aguardando_conferencia: listaAtivas.filter((c) => c.status === 'aguardando_conferencia').length,
       entregues_hoje: listaHoje.length,
       volume_ativas: listaAtivas.reduce((s, c) => s + Number(c.volume_total || 0), 0),
       volume_entregue_hoje: listaHoje.reduce((s, c) => s + Number(c.volume_total || 0), 0)

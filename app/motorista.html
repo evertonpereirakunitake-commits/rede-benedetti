@@ -276,6 +276,7 @@
             motorista_id: sessao.id
           });
           pararRastreio();
+          alert("Entrega confirmada! Aguarde o gerente do posto conferir o volume recebido.");
           await carregarCargas();
         } catch (err) {
           alert("Erro ao confirmar entrega: " + err.message);

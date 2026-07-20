@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
         .from('cargas_transporte')
         .select('*')
         .eq('posto_id', posto_id)
-        .in('status', ['aguardando_carregamento', 'em_transito'])
+        .in('status', ['aguardando_carregamento', 'em_transito', 'aguardando_conferencia'])
         .order('atribuido_em', { ascending: false });
 
       if (error) return json({ error: error.message }, 500);
@@ -117,14 +117,44 @@ Deno.serve(async (req) => {
     }
 
     if (acao === 'confirmar_entrega') {
+      // Motorista diz que chegou e descarregou. Ainda não é o fim: fica
+      // "aguardando_conferencia" até o GERENTE confirmar o volume recebido
+      // (aceite de dois lados - prova de entrega e controle de quebra).
       const { carga_id, motorista_id } = body;
       const { error } = await sb.from('cargas_transporte')
-        .update({ status: 'entregue', entregue_em: new Date().toISOString() })
+        .update({ status: 'aguardando_conferencia', motorista_confirmou_em: new Date().toISOString() })
         .eq('id', carga_id)
-        .eq('motorista_id', motorista_id);
+        .eq('motorista_id', motorista_id)
+        .eq('status', 'em_transito');
 
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
+    }
+
+    if (acao === 'confirmar_recebimento') {
+      // Gerente confere e informa o volume que REALMENTE chegou. Só aqui
+      // a carga vira "entregue" de vez - fecha o ciclo e registra a
+      // diferença (quebra) entre o que saiu e o que chegou.
+      const { carga_id, posto_id, volume_recebido } = body;
+      const volume = Number(volume_recebido);
+      if (!carga_id || !posto_id) return json({ error: 'Dados incompletos' }, 400);
+      if (!isFinite(volume) || volume <= 0) return json({ error: 'Volume recebido precisa ser um número maior que zero' }, 400);
+
+      const { data, error } = await sb.from('cargas_transporte')
+        .update({
+          status: 'entregue',
+          volume_recebido: volume,
+          conferido_em: new Date().toISOString(),
+          entregue_em: new Date().toISOString()
+        })
+        .eq('id', carga_id)
+        .eq('posto_id', posto_id)
+        .eq('status', 'aguardando_conferencia')
+        .select().single();
+
+      if (error) return json({ error: error.message }, 500);
+      if (!data) return json({ error: 'Carga não encontrada ou já conferida' }, 404);
+      return json({ ok: true, carga: data });
     }
 
     return json({ error: 'Ação inválida' }, 400);

@@ -37,6 +37,7 @@
       <div class="kpi tone-accent"><div class="kpi-top"><span class="eyebrow">Cargas ativas</span><span class="kpi-dot"></span></div><div class="kpi-value sk">00</div><div class="kpi-sub sk">carregando</div></div>
       <div class="kpi tone-wait"><div class="kpi-top"><span class="eyebrow">Aguardando</span><span class="kpi-dot"></span></div><div class="kpi-value sk">00</div><div class="kpi-sub sk">carregando</div></div>
       <div class="kpi tone-transit"><div class="kpi-top"><span class="eyebrow">Em trânsito</span><span class="kpi-dot"></span></div><div class="kpi-value sk">00</div><div class="kpi-sub sk">carregando</div></div>
+      <div class="kpi tone-conferencia"><div class="kpi-top"><span class="eyebrow">Conferência</span><span class="kpi-dot"></span></div><div class="kpi-value sk">00</div><div class="kpi-sub sk">carregando</div></div>
       <div class="kpi tone-ok"><div class="kpi-top"><span class="eyebrow">Entregues hoje</span><span class="kpi-dot"></span></div><div class="kpi-value sk">00</div><div class="kpi-sub sk">carregando</div></div>
       <div class="kpi tone-accent"><div class="kpi-top"><span class="eyebrow">Volume hoje</span><span class="kpi-dot"></span></div><div class="kpi-value sk">0</div><div class="kpi-sub sk">carregando</div></div>
     </section>
@@ -214,6 +215,11 @@
           <div class="kpi-value">${pad2(r.em_transito)}</div>
           <div class="kpi-sub">a caminho agora</div>
         </div>
+        <div class="kpi tone-conferencia">
+          <div class="kpi-top"><span class="eyebrow">Conferência</span><span class="kpi-dot"></span></div>
+          <div class="kpi-value">${pad2(r.aguardando_conferencia)}</div>
+          <div class="kpi-sub">aguardando o gerente</div>
+        </div>
         <div class="kpi tone-ok">
           <div class="kpi-top"><span class="eyebrow">Entregues hoje</span><span class="kpi-dot"></span></div>
           <div class="kpi-value">${pad2(r.entregues_hoje)}</div>
@@ -338,9 +344,10 @@
       if (!cargas.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma carga ativa no momento.</td></tr>'; return; }
       const chip = {
         aguardando_carregamento: '<span class="status-chip wait"><span class="d"></span>Aguardando</span>',
-        em_transito: '<span class="status-chip transit"><span class="d"></span>Em trânsito</span>'
+        em_transito: '<span class="status-chip transit"><span class="d"></span>Em trânsito</span>',
+        aguardando_conferencia: '<span class="status-chip conferencia"><span class="d"></span>Conferência</span>'
       };
-      const tone = { aguardando_carregamento: "tone-wait", em_transito: "tone-transit" };
+      const tone = { aguardando_carregamento: "tone-wait", em_transito: "tone-transit", aguardando_conferencia: "tone-conferencia" };
       tb.innerHTML = cargas.map((c) => `
         <tr class="${tone[c.status] || ""}">
           <td class="strong">${c.posto_nome}</td>
