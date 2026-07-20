@@ -31,6 +31,18 @@ class MainActivity : AppCompatActivity() {
             if (url.contains("login.html") && !url.contains("tipo=motorista")) return false
             return true
         }
+
+        // Links que NÃO são páginas do app mas devem abrir num app externo
+        // (mapa/navegação/telefone), em vez de voltar pra tela inicial.
+        // É o caso do "Abrir rota" -> Google Maps ou Waze.
+        fun linkExterno(url: String): Boolean {
+            return url.startsWith("tel:") ||
+                url.startsWith("geo:") ||
+                url.startsWith("waze:") ||
+                url.contains("google.com/maps") ||
+                url.contains("maps.google") ||
+                url.contains("waze.com")
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +57,14 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url.toString()
+                if (linkExterno(url)) {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, request.url))
+                    } catch (e: Exception) {
+                        // nenhum app de mapa/telefone instalado - ignora sem quebrar
+                    }
+                    return true
+                }
                 if (urlPermitida(url)) return false
                 view.loadUrl(URL_INICIAL)
                 return true

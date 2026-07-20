@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
         .eq('id', carga_id)
         .eq('posto_id', posto_id)
         .eq('status', 'aguardando_conferencia')
-        .select().single();
+        .select().maybeSingle();
 
       if (error) return json({ error: error.message }, 500);
       if (!data) return json({ error: 'Carga não encontrada ou já conferida' }, 404);

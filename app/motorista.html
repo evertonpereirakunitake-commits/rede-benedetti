@@ -32,22 +32,27 @@
     margin-top: 5px;
     text-wrap: balance;
   }
+  .rota-botoes {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
   .btn-mapa {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    margin-top: 12px;
-    width: 100%;
+    gap: 7px;
+    flex: 1;
     padding: 12px;
     border-radius: 10px;
-    background: var(--primary);
-    color: var(--primary-ink);
     font-weight: 600;
     font-size: 14px;
     text-decoration: none;
   }
-  .btn-mapa::before { content: "📍"; }
+  .btn-mapa.maps { background: var(--primary); color: var(--primary-ink); }
+  .btn-mapa.maps::before { content: "📍"; }
+  .btn-mapa.waze { background: #33ccff; color: #06303d; }
+  .btn-mapa.waze::before { content: "🧭"; }
 </style>
 </head>
 <body>
@@ -128,9 +133,9 @@
 
         listaEl.innerHTML = cargas.map((c) => {
           const aguardando = c.status === "aguardando_carregamento";
-          const localMapa = c.local_carregamento
-            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.local_carregamento)}`
-            : null;
+          const endereco = c.local_carregamento ? encodeURIComponent(c.local_carregamento) : null;
+          const linkMaps = endereco ? `https://www.google.com/maps/search/?api=1&query=${endereco}` : null;
+          const linkWaze = endereco ? `https://waze.com/ul?q=${endereco}&navigate=yes` : null;
           return `
           <div class="card">
             <span class="badge ${statusClass(c.status)}">${statusLabel(c.status)}</span>
@@ -138,7 +143,10 @@
               <div class="destaque-local">
                 <div class="destaque-titulo">1º · CARREGAR EM</div>
                 <div class="destaque-endereco">${c.local_carregamento}</div>
-                ${localMapa ? `<a class="btn-mapa" href="${localMapa}" target="_blank" rel="noopener">Abrir rota no mapa</a>` : ""}
+                <div class="rota-botoes">
+                  <a class="btn-mapa maps" href="${linkMaps}" target="_blank" rel="noopener">Google Maps</a>
+                  <a class="btn-mapa waze" href="${linkWaze}" target="_blank" rel="noopener">Waze</a>
+                </div>
               </div>` : ""}
             <h3>${aguardando ? "Destino: " : ""}${c.posto_nome}</h3>
             <div class="row"><span>Combustível</span><span>${c.combustivel}</span></div>
