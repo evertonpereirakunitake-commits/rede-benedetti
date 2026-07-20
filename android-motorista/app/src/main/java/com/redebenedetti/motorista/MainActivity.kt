@@ -1,11 +1,15 @@
 package com.redebenedetti.motorista
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
+import android.webkit.JsResult
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -54,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
+        webView.settings.setGeolocationEnabled(true)
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url.toString()
@@ -67,6 +72,37 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (urlPermitida(url)) return false
                 view.loadUrl(URL_INICIAL)
+                return true
+            }
+        }
+        // Sem isso, alert()/confirm() do JavaScript (usados em "Entreguei" e nos
+        // avisos de erro) e a permissão de GPS pro navigator.geolocation (usado
+        // em "Carreguei, iniciar viagem") NUNCA aparecem na tela - o WebView
+        // ignora tudo isso silenciosamente sem um WebChromeClient.
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String?,
+                callback: GeolocationPermissions.Callback?
+            ) {
+                callback?.invoke(origin, true, false)
+            }
+
+            override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
+                AlertDialog.Builder(this@MainActivity)
+                    .setMessage(message)
+                    .setPositiveButton("OK") { _, _ -> result?.confirm() }
+                    .setCancelable(false)
+                    .show()
+                return true
+            }
+
+            override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
+                AlertDialog.Builder(this@MainActivity)
+                    .setMessage(message)
+                    .setPositiveButton("OK") { _, _ -> result?.confirm() }
+                    .setNegativeButton("Cancelar") { _, _ -> result?.cancel() }
+                    .setCancelable(false)
+                    .show()
                 return true
             }
         }
