@@ -116,10 +116,10 @@
           if (!primeiraChecagem) {
             if (anterior === undefined) {
               tocarAlerta();
-              notificar("Nova carga atribuída", `${c.motorista_nome} - ${c.combustivel}`);
+              notificar("Carga aguardando envio", `${c.motorista_nome} vai trazer ${c.combustivel} - ${c.volume_total} L`);
             } else if (anterior === "aguardando_carregamento" && c.status === "em_transito") {
               tocarAlerta();
-              notificar("Carga a caminho", `${c.motorista_nome} saiu com ${c.combustivel}`);
+              notificar("Motorista confirmou o carregamento", `${c.motorista_nome} está a caminho com ${c.combustivel} - acompanhe o km e o tempo restante`);
             } else if (anterior !== "aguardando_conferencia" && c.status === "aguardando_conferencia") {
               tocarAlerta();
               notificar("Motorista chegou", `${c.motorista_nome} confirmou a entrega - confira o volume recebido`);
