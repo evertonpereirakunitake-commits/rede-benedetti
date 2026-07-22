@@ -10,6 +10,7 @@ import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.JsResult
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -74,6 +75,18 @@ class MainActivity : AppCompatActivity() {
                 view.loadUrl(URL_INICIAL)
                 return true
             }
+
+            // Sem internet, DNS bloqueado ou rede restrita (comum em alguns
+            // celulares Xiaomi/MIUI, que bloqueiam o acesso à internet por
+            // app até o motorista liberar manualmente) faziam o WebView
+            // mostrar sua própria tela de erro em inglês, que parecia
+            // "página não encontrada". Agora mostramos uma tela clara em
+            // português com botão pra tentar de novo.
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame) {
+                    mostrarErroConexao()
+                }
+            }
         }
         // Sem isso, alert()/confirm() do JavaScript (usados em "Entreguei" e nos
         // avisos de erro) e a permissão de GPS pro navigator.geolocation (usado
@@ -115,6 +128,27 @@ class MainActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+    }
+
+    private fun mostrarErroConexao() {
+        val html = """
+            <html><body style="background:#000;color:#eef1f7;font-family:sans-serif;
+            display:flex;align-items:center;justify-content:center;height:100vh;margin:0;
+            text-align:center;padding:28px;box-sizing:border-box;">
+            <div>
+              <h2 style="margin:0 0 10px;">Sem conexão</h2>
+              <p style="color:#aab4c4;font-size:14px;line-height:1.5;">
+                Não foi possível carregar o app. Confira se o celular está com
+                internet (Wi-Fi ou dados móveis) ligada e se o app tem
+                permissão de acesso à internet, depois tente de novo.
+              </p>
+              <button onclick="window.location.href='$URL_INICIAL'" style="margin-top:16px;
+                padding:14px 26px;font-size:15px;border-radius:10px;border:none;
+                background:#ff6f1f;color:#1a0d02;font-weight:700;">Tentar de novo</button>
+            </div>
+            </body></html>
+        """.trimIndent()
+        webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
     }
 
     private fun pedirPermissoesBasicas() {
